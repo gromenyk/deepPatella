@@ -10,6 +10,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import matplotlib.pyplot as plt
+from pipeline.video_preprocessing import process_video
 from pipeline.video_input import frame_split
 from pipeline.list_generator import npz_files_list
 from pipeline.center_of_mass import place_centroids
@@ -49,7 +50,8 @@ parser.add_argument('--deterministic', type=int,  default=1, help='whether use d
 parser.add_argument('--base_lr', type=float,  default=0.005, help='segmentation network learning rate')
 parser.add_argument('--seed', type=int, default=1234, help='random seed')
 parser.add_argument('--vit_patches_size', type=int, default=16, help='vit_patches_size, default is 16')
-parser.add_argument('--video_path', type=str, default='./datasets/videos/example_video.mp4', help='path to the input video')
+parser.add_argument('--original_video_path', type=str, default='./datasets/videos/original_video.mp4', help='path to the input video')
+parser.add_argument('--preprocessed_video_path', type=str, default='./outputs/preprocessed_video.mp4', help='cropped and scaled video')
 parser.add_argument('--original_images', type=str, default='../data/Synapse/original_images.npy', help='path to saved original images')
 parser.add_argument('--npz_files', type=str, default='../data/Synapse/test_vol_h5', help='Path to the NPZ files folder')
 parser.add_argument('--output_txt_file', type=str, default='./lists/lists_Synapse/test_vol.txt', help='Output folder for the txt file')
@@ -59,14 +61,25 @@ parser.add_argument('--placed_centroids_folder', type=str, default='./outputs/pl
 parser.add_argument('--output_video_file', type=str, default='./outputs/reconstructed_video.mp4', help='folder for the output video with insertions')
 args = parser.parse_args()
 
-print('Video pre-processing...')
+print('Cropping and scaling original video...')
 
 try:
-    frame_split(args.video_path, args.volume_path, args.original_images)
-    print('Video pre-processing finished')
+    process_video(args.original_video_path, args.preprocessed_video_path)
+except Exception as e:
+    print(f'Error encountered when preprocessing the original video: {e}')
+    exit(1)
+
+print('Finished cropping and scaling')
+
+print('Splitting video into frames')
+
+try:
+    frame_split(args.preprocessed_video_path, args.volume_path, args.original_images)
 except Exception as e:
     print(f'Error encountered during video pre-processing: {e}')
     exit(1)
+
+print('Video split finished')
 
 print('Generating NPZ file list')
 
@@ -76,6 +89,8 @@ try:
 except Exception as e:
     print(f'Coudl not generate the NPZ list: {e}')
     exit(1)
+
+print('NPZ file list generated')
 
 def inference(args, model, test_save_path=None):
     db_test = args.Dataset(base_dir=args.volume_path, split="test_vol", list_dir=args.list_dir)
