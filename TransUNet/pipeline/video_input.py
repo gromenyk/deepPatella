@@ -67,20 +67,5 @@ def frame_split(video_path, output_folder, original_images_file):
 
     print(f'Extraction Completed. {frame_count} frames and masks were generated')
 
-'''
-def main():
-    parser = argparse.ArgumentParser(description="Video Pre-Processing")
-    parser.add_argument("--video", type=str, default="../datasets/videos/example_video.mp4", help="Input video path")
-    parser.add_argument("--output", type=str, default="../../data/Synapse/test_vol_h5", help="Frames output folder")
-    parser.add_argument("--originals", type=str, default="../../data/Synapse/original_images.npy", help="npy file for original images")
-    
-    args = parser.parse_args()
-    frame_split(args.video, args.output, args.originals)
-
-if __name__ == "__main__":
-    main()'
-
-'''
-
 
 

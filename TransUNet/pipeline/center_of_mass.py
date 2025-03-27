@@ -3,18 +3,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import center_of_mass
 from PIL import Image
+import pandas as pd
+import cv2
+import json
 
 NPZ_FOLDER = './data/Synapse/test_vol_h5'
 PREDICTED_IMAGES_FOLDER = './predicted_images'
 PLACED_CENTROIDS = './outputs/placed_center_of_mass'
 CENTROID_OVER_PRED_IMAGE = './center_of_mass_over_pred_images'
 ORIGINAL_IMAGES_FILE = '../data/Synapse/original_images.npy'
+CSV_OUTPUT_PATH = './outputs/insertion_coords.csv'
+ORIGINAL_VIDEO_PATH = './datasets/videos/original_video.mp4'
+CSV_KALMAN_PATH = './outputs/kalman_coordinates.csv'
+
 
 os.makedirs(PLACED_CENTROIDS, exist_ok=True)
 os.makedirs(CENTROID_OVER_PRED_IMAGE, exist_ok=True)
 
 def find_centers_of_mass_for_hottest_pixels(prediction):
-    """Encuentra los centros de masa en las mitades izquierda y derecha de la imagen de predicción."""
     h, w = prediction.shape
     mid = w // 2
 
@@ -35,36 +41,15 @@ def find_centers_of_mass_for_hottest_pixels(prediction):
 
     return left_center, right_center
 
-def hampel_filter(data, window_size=5, threshold=3):
-    """Aplica el filtro Hampel para detectar y reemplazar outliers"""
-    filtered_data = data.copy()
-    half_window = window_size // 2
-    
-    for i in range(half_window, len(data) - half_window):
-        window = data[i - half_window:i + half_window + 1]
-        median = np.median(window)  
-        mad = np.median(np.abs(window - median))  
-        
-        threshold_value = threshold * mad
-        
-        if np.abs(data[i] - median) > threshold_value:
-            filtered_data[i] = median
-    
-    return filtered_data
+def place_centroids(npz_files, predictions_dir, original_images_file, placed_centroids_folder, csv_output_path):
 
-def smooth_coordinates_hampel(center_list, window_size=5, threshold=3):
-    """Aplica el filtro Hampel para suavizar las coordenadas de los centros."""
-    smoothed_list = []
-    for center in center_list:
-        smoothed_x = hampel_filter([coord[0] for coord in center_list], window_size, threshold)
-        smoothed_y = hampel_filter([coord[1] for coord in center_list], window_size, threshold)
-        smoothed_list.append((smoothed_x, smoothed_y))
+    cap = cv2.VideoCapture(ORIGINAL_VIDEO_PATH)
+    if not cap.isOpened():
+        raise ValueError(f"Error when opening the video: {ORIGINAL_VIDEO_PATH}")
     
-    return smoothed_list
-
-def place_centroids(npz_files, predictions_dir, original_images_file, placed_centroids_folder):
-    """Procesa los archivos NPZ y genera imágenes con los centroides marcados."""
-
+    fps = cap.get(cv2.CAP_PROP_FPS)  # Obtener FPS
+    cap.release()
+    
     ORIGINAL_SIZE = (512, 512)
     PREDICTION_SIZE = (224, 224)
     SCALE_X = ORIGINAL_SIZE[1] / PREDICTION_SIZE[1]
@@ -76,6 +61,8 @@ def place_centroids(npz_files, predictions_dir, original_images_file, placed_cen
 
     left_center_list = []
     right_center_list = []
+
+    csv_data = []
 
     for npz_file in os.listdir(npz_files):
         if not npz_file.endswith('.npz'):
@@ -94,16 +81,24 @@ def place_centroids(npz_files, predictions_dir, original_images_file, placed_cen
 
         left_center, right_center = find_centers_of_mass_for_hottest_pixels(prediction)
 
-        scaled_left = (int(left_center[0] * SCALE_Y), int(left_center[1] * SCALE_X))
-        scaled_right = (int(right_center[0] * SCALE_Y), int(right_center[1] * SCALE_X))
+        scaled_left = ((left_center[0] * SCALE_Y), (left_center[1] * SCALE_X))
+        scaled_right = ((right_center[0] * SCALE_Y), (right_center[1] * SCALE_X))
 
         left_center_list.append(scaled_left)
         right_center_list.append(scaled_right)
+
+        csv_data.append([scaled_left[0], scaled_left[1], scaled_right[0], scaled_right[1], fps])
+
 
         frame_index = int(npz_file.split('_')[1].split('.')[0])
         original_image = original_images[frame_index]
 
         save_centroid_image(original_image, scaled_left, scaled_right, npz_file, placed_centroids_folder)
+
+    df = pd.DataFrame(csv_data, columns=['distal_X', 'distal_y', 'proximal_x', 'proximal_y', 'FPS'])
+    df = df.astype({'distal_X': 'float64', 'distal_y': 'float64', 'proximal_x': 'float64', 'proximal_y': 'float64', 'FPS': 'float64'})
+    df.to_csv(csv_output_path, index=False, float_format='%.10f')
+    print(f'CSV de coordenadas guardado en {csv_output_path}')
 
 
 def save_centroid_image(original_image, scaled_left, scaled_right, npz_file, placed_centroids):
@@ -120,7 +115,7 @@ def save_centroid_image(original_image, scaled_left, scaled_right, npz_file, pla
 
 
 if __name__ == "__main__":
-    place_centroids(NPZ_FOLDER, PREDICTED_IMAGES_FOLDER, ORIGINAL_IMAGES_FILE, PLACED_CENTROIDS)
+    place_centroids(NPZ_FOLDER, PREDICTED_IMAGES_FOLDER, ORIGINAL_IMAGES_FILE, PLACED_CENTROIDS, CSV_OUTPUT_PATH)
 
 
 

@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import json
 
 # Required dimensions
 FINAL_WIDTH = 508
@@ -73,6 +74,8 @@ def process_video(input_video_path, output_video_path='../outputs/preprocessed_v
         print(f"Video saved in: {output_video_path}")
 
     return processed_frames  
+
+
 
 
 

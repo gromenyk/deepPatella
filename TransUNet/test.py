@@ -15,6 +15,11 @@ from pipeline.video_input import frame_split
 from pipeline.list_generator import npz_files_list
 from pipeline.center_of_mass import place_centroids
 from pipeline.video_reconstruction import reconstruct_video
+from pipeline.acceleration_threshold import calculate_distances_and_speeds
+from pipeline.kalman_distal import apply_kalman_filter_distal
+from pipeline.kalman_proximal import apply_kalman_filter_proximal
+from pipeline.kalman_video_application import process_video_with_predictions
+from pipeline.video_reconstruction_kalman_pred import reconstruct_kalman_video
 from torch.utils.data import DataLoader
 from PIL import Image
 from tqdm import tqdm
@@ -55,6 +60,15 @@ parser.add_argument('--preprocessed_video_path', type=str, default='./outputs/pr
 parser.add_argument('--original_images', type=str, default='../data/Synapse/original_images.npy', help='path to saved original images')
 parser.add_argument('--npz_files', type=str, default='../data/Synapse/test_vol_h5', help='Path to the NPZ files folder')
 parser.add_argument('--output_txt_file', type=str, default='./lists/lists_Synapse/test_vol.txt', help='Output folder for the txt file')
+parser.add_argument('--csv_with_coords_output_folder', type=str, default='./outputs/insertion_coords.csv')
+parser.add_argument('--accelerations_threshold_csv', type=str, default='./outputs/accelerations.csv', help='CSV with accelerations threshold')
+parser.add_argument('--accelerations_threshold', type=int, default=0, help='accelerations threshold')
+parser.add_argument('--kalman_coordinates_distal', type=str, default='./outputs/kalman_coords_distal.csv', help='corrected distal coordinates by kalman filter')
+parser.add_argument('--kalman_coordinates_proximal', type=str, default='./outputs/kalman_coords_proximal.csv', help='corrected proximal coordinates by kalman filter')
+parser.add_argument('--kalman_coords_plot_distal', type=str, default='./outputs/kalman_plot_distal.png', help='plot of the corrected distal coordinates by the Kalman filter')
+parser.add_argument('--kalman_coords_plot_proximal', type=str, default='./outputs/kalman_plot_proximal.png', help='plot of the corrected proximal coordinates by the Kalman filter')
+parser.add_argument('--kalman_input_images', type=str, default='./outputs/kalman_predictions', help='folder for the input images for kalman video reconstruction')
+parser.add_argument('--kalman_video_reconstruction', type=str, default='./outputs/kalman_reconstructed_video.mp4', help='folder for the reconstrcuted video with kalman predictions')
 parser.add_argument('--predictions_dir', type=str, default='./outputs/predicted_images', help='Predicted images folder')
 parser.add_argument('--original_images_file', type=str, default='../data/Synapse/original_images.npy', help='path to the original images numpy file')
 parser.add_argument('--placed_centroids_folder', type=str, default='./outputs/placed_center_of_mass', help='placed centroids folder')
@@ -233,9 +247,31 @@ if __name__ == "__main__":
     wandb.finish()
 
 print('Plotting insertion coordinates over original images...')
-place_centroids(args.npz_files, args.predictions_dir, args.original_images_file, args.placed_centroids_folder)
+place_centroids(args.npz_files, args.predictions_dir, args.original_images_file, args.placed_centroids_folder, args.csv_with_coords_output_folder)
 print('Plotting finished')
 
 print('Building video with predictions')
 reconstruct_video(args.placed_centroids_folder, args.output_video_file)
 print('Video reconstruction finished')
+
+print('Obtaining acceleration threshold')
+calculate_distances_and_speeds(args.csv_with_coords_output_folder, args.accelerations_threshold_csv)
+print('Finished obtaining acceleration threshold')
+
+print('Applying Kalman filter for the distal insertion')
+apply_kalman_filter_distal(args.accelerations_threshold_csv, args.kalman_coordinates_distal, args.kalman_coords_plot_distal, args.accelerations_threshold)
+print('Kalman filter for distal insertion applied')
+
+print('Applying Kalman filter for the proximal insertion')
+apply_kalman_filter_proximal(args.accelerations_threshold_csv, args.kalman_coordinates_proximal, args.kalman_coords_plot_proximal, args.accelerations_threshold)
+print('Kalman filter for proximal insertion applied')
+
+print('Generating image inputs corrected by Kalman filter for video reconstruction')
+process_video_with_predictions(args.kalman_coordinates_distal, args.kalman_coordinates_proximal, args.original_images_file, args.kalman_input_images)
+print('Finished generating image inputs corrected by Kalman filter for video reconstruction')
+
+print('Reconstructing video corrected by Kalman filter')
+reconstruct_kalman_video(args.kalman_input_images, args.kalman_video_reconstruction, args.original_video_path)
+print('Video corrected by Kalman filter reconstruction finished')
+
+
