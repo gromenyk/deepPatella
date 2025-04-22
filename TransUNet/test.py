@@ -10,6 +10,9 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import matplotlib.pyplot as plt
+import time
+import csv
+import functools
 from pipeline.video_preprocessing import process_video
 from pipeline.video_input import frame_split
 from pipeline.list_generator import npz_files_list
@@ -28,7 +31,31 @@ from utils import test_single_volume
 from networks.vit_seg_modeling import VisionTransformer as ViT_seg
 from networks.vit_seg_modeling import CONFIGS as CONFIGS_ViT_seg
 
-wandb.init(project = 'deeppatella', group = 'testing', name = 'test_data_augmentation_13_02_2025', resume = 'allow')
+#os.environ['WANDB_MODE'] = 'disabled'  # Disable wandb online mode
+#wandb.init(project = 'deeppatella', group = 'testing', name = 'test_data_augmentation_13_02_2025', resume = 'allow', mode='offline')
+print = functools.partial(print, flush=True)
+
+def log_time_to_csv(step_name, start_time, end_time, filename='./process_times.csv'):
+    elapsed_time = end_time - start_time
+    with open(filename, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        # Si el archivo está vacío, escribe las cabeceras
+        if file.tell() == 0:
+            writer.writerow(['Step', 'Start Time', 'End Time', 'Elapsed Time (seconds)'])
+        writer.writerow([step_name, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time)),
+                         time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)), elapsed_time])
+
+def log_time(step_name, start_time=None, filename='process_times.csv'):
+    """Función para registrar el tiempo de cada paso y mostrarlo"""
+    current_time = time.time()  # Captura el tiempo actual en segundos desde la época
+    formatted_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(current_time))  # Formatea el tiempo
+    if start_time:
+        elapsed_time = current_time - start_time
+        print(f"{step_name} - Tiempo transcurrido: {elapsed_time:.2f} segundos")
+        log_time_to_csv(step_name, start_time, current_time, filename)  # Guardar tiempo en CSV
+    else:
+        print(f"{step_name} - {formatted_time}")
+    return current_time
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--volume_path', type=str,
@@ -75,7 +102,9 @@ parser.add_argument('--placed_centroids_folder', type=str, default='./outputs/pl
 parser.add_argument('--output_video_file', type=str, default='./outputs/reconstructed_video.mp4', help='folder for the output video with insertions')
 args = parser.parse_args()
 
-print('Cropping and scaling original video...')
+# Video preprocessing block
+print('[UI] Preprocessing video...')
+start_time_video_processing = log_time('Preprocessing video...')
 
 try:
     process_video(args.original_video_path, args.preprocessed_video_path)
@@ -83,9 +112,13 @@ except Exception as e:
     print(f'Error encountered when preprocessing the original video: {e}')
     exit(1)
 
-print('Finished cropping and scaling')
+end_time_video_processing = time.time()
+log_time_to_csv('Video Processing', start_time_video_processing, end_time_video_processing)
+print('[PROGRESS 9.1] Finished video preprocessing')
 
-print('Splitting video into frames')
+# Video splitting block
+print('[UI] Splitting video into frames...')
+start_time_video_splitting = log_time('Splitting video into frames')
 
 try:
     frame_split(args.preprocessed_video_path, args.volume_path, args.original_images)
@@ -93,18 +126,25 @@ except Exception as e:
     print(f'Error encountered during video pre-processing: {e}')
     exit(1)
 
-print('Video split finished')
+end_time_video_splitting = time.time()
+log_time_to_csv('Video splitting', start_time_video_splitting, end_time_video_splitting)
+print('[PROGRESS 18.2] Finished splitting video into frames')
 
-print('Generating NPZ file list')
+# NPZ file list generation
+print('[UI] Generating NPZ file list...')
+start_time_npz_file_list_creation = log_time('Generating NPZ file list')
 
 try:
     npz_files_list(args.npz_files, args.output_txt_file)
     print ('NPZ files list generated in {output_txt_file}')
 except Exception as e:
-    print(f'Coudl not generate the NPZ list: {e}')
+    print(f'Could not generate the NPZ list: {e}')
     exit(1)
 
-print('NPZ file list generated')
+end_time_npz_file_list_creation = time.time()
+log_time_to_csv('NPZ file list creation', start_time_npz_file_list_creation, end_time_npz_file_list_creation)
+print('[PROGRESS 27.3] Finished creating the NPZ files list')
+
 
 def inference(args, model, test_save_path=None):
     db_test = args.Dataset(base_dir=args.volume_path, split="test_vol", list_dir=args.list_dir)
@@ -148,10 +188,10 @@ def inference(args, model, test_save_path=None):
 
         prediction_image = Image.open(buf)
 
-        wandb.log({
-            f'Image {case_name}': wandb.Image(image[0,0].cpu().numpy(), caption='Original Image'),
-            f'Prediction {case_name}': wandb.Image(prediction_image, caption='Prediction')            
-        })
+        #wandb.log({
+        #    f'Image {case_name}': wandb.Image(image[0,0].cpu().numpy(), caption='Original Image'),
+        #    f'Prediction {case_name}': wandb.Image(prediction_image, caption='Prediction')            
+        #})
 
     return "Testing Finished!"
 
@@ -236,6 +276,10 @@ if __name__ == "__main__":
     logging.info(str(args))
     logging.info(snapshot_name)
 
+    # Running the inference
+    print('[UI] Running Inference...')
+    start_time_inference = log_time('Starting inference...')
+
     if args.is_savenii:
         args.test_save_dir = './predictions'
         test_save_path = os.path.join(args.test_save_dir, args.exp, snapshot_name)
@@ -244,34 +288,61 @@ if __name__ == "__main__":
         test_save_path = None
     inference(args, net, test_save_path)
 
-    wandb.finish()
+    end_time_inference = time.time()
+    log_time_to_csv('Inference', start_time_inference, end_time_inference)
+    print('[PROGRESS 36.4] Finished running inference...')
 
-print('Plotting insertion coordinates over original images...')
+    #wandb.finish()
+
+print('[UI] Plotting insertion coordinates over original images...')
+start_time_insertion_coords_plotting = log_time('Plotting insertion coordinates over original images...')
 place_centroids(args.npz_files, args.predictions_dir, args.original_images_file, args.placed_centroids_folder, args.csv_with_coords_output_folder)
-print('Plotting finished')
+end_time_insertion_coords_plotting = time.time()
+log_time_to_csv('Insertion Plotting', start_time_insertion_coords_plotting, end_time_insertion_coords_plotting)
+print('[PROGRESS 45.5] Finished plotting insertion coordinates')
 
-print('Building video with predictions')
+print('[UI] Building video with predictions')
+start_time_build_video_with_preds = log_time('Building video with predictions')
 reconstruct_video(args.placed_centroids_folder, args.output_video_file)
-print('Video reconstruction finished')
+end_time_build_video_with_preds = time.time()
+log_time_to_csv('Video reconstruction Transunet coords', start_time_build_video_with_preds, end_time_build_video_with_preds)
+print('[PROGRESS 54.6] Finished building video with TransUNet predictions')
 
-print('Obtaining acceleration threshold')
+print('[UI] Obtaining acceleration threshold')
+start_time_obtain_accel_threshold = log_time('Obtaining acceleration threshold')
 calculate_distances_and_speeds(args.csv_with_coords_output_folder, args.accelerations_threshold_csv)
-print('Finished obtaining acceleration threshold')
+end_time_obtain_accel_threshold = time.time()
+log_time_to_csv('Acceleration threshold obtention', start_time_obtain_accel_threshold, end_time_obtain_accel_threshold)
+print('[PROGRESS 63.7] Finished obtaining acceleration threshold')
 
-print('Applying Kalman filter for the distal insertion')
+print('[UI] Applying Kalman filter for the fistak insertion')
+start_time_apply_kalman_distal = log_time('Applying Kalman filter for the distal insertion')
 apply_kalman_filter_distal(args.accelerations_threshold_csv, args.kalman_coordinates_distal, args.kalman_coords_plot_distal, args.accelerations_threshold)
-print('Kalman filter for distal insertion applied')
+end_time_apply_kalman_distal = time.time()
+log_time_to_csv('Kalman filter for distal insertion applied', start_time_apply_kalman_distal, end_time_apply_kalman_distal)
+print('[PROGRESS 72.8] Finished applyin Kalman filter to distal insertions')
 
-print('Applying Kalman filter for the proximal insertion')
+print('[UI] Applying Kalman filter for the proximal insertion')
+start_time_apply_kalman_proximal = log_time('Applying Kalman filter for the proximal insertion')
 apply_kalman_filter_proximal(args.accelerations_threshold_csv, args.kalman_coordinates_proximal, args.kalman_coords_plot_proximal, args.accelerations_threshold)
-print('Kalman filter for proximal insertion applied')
+end_time_apply_kalman_proximal = time.time()
+log_time_to_csv('Kalman filter for proximal insertion applied', start_time_apply_kalman_proximal, end_time_apply_kalman_proximal)
+print('[PROGRESS 81.9] Finished applying Kalman filter to proximal insertions')
 
-print('Generating image inputs corrected by Kalman filter for video reconstruction')
+print('[UI] Generating image inputs corrected by Kalman filter for video reconstruction')
+start_time_corrected_kalman_coords = log_time('Generating image inputs corrected by Kalman filter for video reconstruction')
 process_video_with_predictions(args.kalman_coordinates_distal, args.kalman_coordinates_proximal, args.original_images_file, args.kalman_input_images)
-print('Finished generating image inputs corrected by Kalman filter for video reconstruction')
+end_time_corrected_kalman_coords = time.time()
+log_time_to_csv('Finished generating image inputs corrected by Kalman filter for video reconstruction', start_time_corrected_kalman_coords, end_time_corrected_kalman_coords)
+print('[PROGRESS 91.0] Finished plotting insertion coordinates corrected by Kalman filter')
 
-print('Reconstructing video corrected by Kalman filter')
+print('[UI] Reconstructing video corrected by Kalman filter')
+start_time_kalman_video_build = log_time('Reconstructing video corrected by Kalman filter')
 reconstruct_kalman_video(args.kalman_input_images, args.kalman_video_reconstruction, args.original_video_path)
-print('Video corrected by Kalman filter reconstruction finished')
+end_time_kalman_video_build = time.time()
+log_time_to_csv('Video corrected by Kalman filter reconstruction finished', start_time_kalman_video_build, end_time_kalman_video_build)
+print('[PROGRESS 100.0] Finished reconstructing video with Kalman corrected coordinates')
+
+print('[Process Completed]')
 
 

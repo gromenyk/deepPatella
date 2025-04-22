@@ -70,8 +70,8 @@ def apply_kalman_filter_proximal(input_csv_path, output_csv_path, output_plot_pa
 
     df.to_csv(output_csv_path, index=False)
 
-    plt.plot(df.index, real_x, label='X Real Position', color='blue')  
-    plt.plot(df.index, real_y, label='Y Real Position', color='green')  
+    plt.plot(df.index, real_x, label='X TransUNet Predicted Position', color='blue')  
+    plt.plot(df.index, real_y, label='Y TransUNet Predicted Position', color='green')  
 
     plt.plot(df.index, predictions_df['predicted_proximal_x'], label='X Predicted Position', linestyle='-', color='red')  
     plt.plot(df.index, predictions_df['predicted_proximal_y'], label='Y Predicted Position', linestyle='-', color='orange') 

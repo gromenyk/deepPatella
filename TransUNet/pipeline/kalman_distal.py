@@ -70,11 +70,11 @@ def apply_kalman_filter_distal(input_csv_path, output_csv_path, output_plot_path
 
     df.to_csv(output_csv_path, index=False)
 
-    plt.plot(df.index, real_x, label='X Real Position', color='blue')  
-    plt.plot(df.index, real_y, label='Y Real Position', color='green')  
+    plt.plot(df.index, real_x, label='X TransUNet Predicted Position', color='blue')  
+    plt.plot(df.index, real_y, label='Y TransUNet Predicted Position', color='green')  
 
-    plt.plot(df.index, predictions_df['predicted_distal_x'], label='X Predicted Position', linestyle='-', color='red')  
-    plt.plot(df.index, predictions_df['predicted_distal_y'], label='Y Predicted Position', linestyle='-', color='orange')  
+    plt.plot(df.index, predictions_df['predicted_distal_x'], label='X Kalman Predicted Position', linestyle='-', color='red')  
+    plt.plot(df.index, predictions_df['predicted_distal_y'], label='Y Kalman Predicted Position', linestyle='-', color='orange')  
 
     plt.legend()
     plt.xlabel('Frame')
