@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import time
 import csv
 import functools
+import shutil
 from pipeline.video_preprocessing import process_video
 from pipeline.video_input import frame_split
 from pipeline.list_generator import npz_files_list
@@ -56,6 +57,59 @@ def log_time(step_name, start_time=None, filename='process_times.csv'):
     else:
         print(f"{step_name} - {formatted_time}")
     return current_time
+
+# Function to copy output video to static folder
+def copy_video_to_static():
+    project_root_dir = os.path.abspath(os.path.join(os.getcwd(), '..')) 
+
+    source_file = os.path.join(project_root_dir, 'TransUNet', 'outputs', 'kalman_reconstructed_video.mp4')
+    target_dir = os.path.join(project_root_dir, 'GUI', 'static', 'output')
+    target_file = os.path.join(target_dir, 'kalman_reconstructed_video.mp4')
+
+    if not os.path.exists(source_file):
+        print(f"El archivo de origen {source_file} no existe. Verifica que haya sido generado.")
+        return
+
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+        print(f"Directorio {target_dir} creado.")
+
+    try:
+        shutil.copy(source_file, target_file)
+        print(f"Copiado {source_file} -> {target_file}")
+    except Exception as e:
+        print(f"Error al copiar {source_file}: {e}")
+
+# Function to copy frames to static
+def copy_frames_to_static():
+    project_root_dir = os.path.abspath(os.path.join(os.getcwd(), '..')) 
+
+    source_dir = os.path.join(project_root_dir, 'TransUNet', 'outputs', 'kalman_predictions')
+    target_dir = os.path.join(project_root_dir, 'GUI', 'static', 'frames')
+
+    if not os.path.exists(source_dir):
+        print(f"El directorio de origen {source_dir} no existe. Verifica que los archivos de salida hayan sido generados.")
+        return
+
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+        print(f"Directorio {target_dir} creado.")
+
+    for file in os.listdir(source_dir):
+        if file.endswith('_with_coordinates.png'):  
+            source_file = os.path.join(source_dir, file)
+            target_file = os.path.join(target_dir, file)
+            try:
+                shutil.copy(source_file, target_file)
+                print(f"Copiado {source_file} -> {target_file}")
+            except Exception as e:
+                print(f"Error al copiar {source_file}: {e}")
+
+    flag_file_path = os.path.join(target_dir, 'frames_ready.flag')
+    with open(flag_file_path, 'w') as f:
+        f.write('ready')
+
+    print('[frames_ready.flag creado]')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--volume_path', type=str,
@@ -342,6 +396,8 @@ reconstruct_kalman_video(args.kalman_input_images, args.kalman_video_reconstruct
 end_time_kalman_video_build = time.time()
 log_time_to_csv('Video corrected by Kalman filter reconstruction finished', start_time_kalman_video_build, end_time_kalman_video_build)
 print('[PROGRESS 100.0] Finished reconstructing video with Kalman corrected coordinates')
+
+copy_frames_to_static()
 
 print('[Process Completed]')
 

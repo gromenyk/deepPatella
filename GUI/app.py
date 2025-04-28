@@ -1,7 +1,7 @@
 import os
 import subprocess
 import time
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory, Response, send_file
 from threading import Thread, Event
 
 app = Flask(__name__)
@@ -20,6 +20,14 @@ stop_event = Event()
 @app.route('/')
 def home():
     return render_template('index.html')
+
+@app.route('/baseline_calculation')
+def baseline_calculation():
+    return render_template('baseline_calculation.html')
+
+@app.route('/stiffness_calculation')
+def stiffness_calculation():
+    return render_template('stiffness_calculation.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -131,6 +139,36 @@ def get_progress():
 def allowed_file(filename):
     allowed_extensions = {'mp4'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+@app.route('/check_frames')
+def check_frames():
+    frames_dir = os.path.join('static', 'frames')
+    # Verificar si el archivo frames_ready.flag está presente en el directorio
+    flag_file_path = os.path.join(frames_dir, 'frames_ready.flag')
+    
+    if os.path.exists(flag_file_path):
+        frames = [f for f in os.listdir(frames_dir) if f.endswith('.jpg') or f.endswith('.png')]
+        frames_available = len(frames) > 0  # Comprobar si hay frames disponibles
+        return jsonify({'frames_available': frames_available})
+    else:
+        return jsonify({'frames_available': False})
+
+@app.route('/get_frames')
+def get_frames():
+    frames_dir = os.path.join('static', 'frames')
+    try:
+        frames = sorted([
+            f for f in os.listdir(frames_dir)
+            if f.endswith('.jpg') or f.endswith('.png')
+        ])
+        return jsonify({'frames': frames})
+    except Exception as e:
+        print(f"Error loading frames: {e}")
+        return jsonify({'frames': []})
+    
+@app.route('/frames/<filename>')
+def get_frame(filename):
+    return send_from_directory(os.path.join('static', 'frames'), filename)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

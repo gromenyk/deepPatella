@@ -11,6 +11,12 @@
         <h1>DeepPatella</h1>
         <p>Automatic quantification of patellar tendon stiffness</p>
     </div>
+    <menu>
+        <li><a href="{{ url_for('home') }}">Configurations & Visualizations</a></li>
+        <li><a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a></li>
+        <li><a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a></li>
+    </menu>
+    
     <div class="main">
         <div class="col_left">
             <h2>Configurations</h2>
@@ -27,10 +33,14 @@
                 {% endif %}
             </div>
         <div class="inference">
-            <form id='run-inference-form' action="/run_inference" method="POST">
-                <input type="submit" id="start-inference-button" value="▶️ Start Inference">
-                <input type="submit" id="stop-inference-button" value="🛑 Stop Inference">
-            </form>
+            <div class="button-container">
+                <form id='run-inference-form' action="/run_inference" method="POST">
+                    <input type="submit" id="start-inference-button" value="▶️ Start Inference">
+                </form>
+                <form id='stop-inference-form' action="/stop_inference" method="POST">
+                    <input type="submit" id="stop-inference-button" value="🛑 Stop Inference">
+                </form>
+            </div>
             {% if inference_message %}
                 <p class="upload-success">{{ inference_message }}</p>
             {% endif %}
@@ -38,13 +48,26 @@
                 <div id="progress-bar-fill">0%</div>
             </div>
             <div class="progress-info">
-                <div id="progress-text"></div>
                 <div id="progress-time"></div>
+                <select id="progress-dropdown">
+                    <option value="" id="progress-option">Show Progress Details</option>
+                </select>
+                    
+                <div id="progress-text"></div>
             </div>
         </div>
         </div>
         <div class="col_right">
             <h2>Visualizations</h2>
+            <div class="frames_container" id="frames-container">
+                <p id="waiting-message">Video will be displayed here once the inference is finished</p>
+                <img id="frame" style="display: none;" width="512" />
+                <input type="range" id="frameSlider" min="0" value="0" step="1" oninput="sliderChanged()" />
+                <div class="video-btns">
+                    <button onclick="playFrames()"  id="play-btn">▶️ Play</button>
+                    <button onclick="pauseFrames()" id="pause-btn">⏸️ Pause</button>
+                </div>
+            </div>
         </div>
     </div>  
     <p id="progress-info"></p>
@@ -75,6 +98,7 @@ let inferenceRunning = false;
                 const progressMessage = document.getElementById('progress-message');
                 const progressText = document.getElementById('progress-text');
                 const progressTime = document.getElementById('progress-time');
+                const progressDropdown = document.getElementById('progress-dropdown');
     
                 // Actualiza la barra de progreso
                 progressBar.style.width = data.percent + '%';
@@ -90,7 +114,22 @@ let inferenceRunning = false;
                 }
                 
                 // Muestra el mensaje actual
-                progressMessage.textContent = data.message;
+                progressDropdown.innerHTML = '';
+
+                // Agregar la opción predeterminada como placeholder, no seleccionable
+                const defaultOption = document.createElement('option');
+                defaultOption.textContent = "Show Progress Details";
+                defaultOption.value = "";
+                defaultOption.disabled = true;
+                defaultOption.selected = true;
+                defaultOption.hidden = true;
+                progressDropdown.appendChild(defaultOption);
+
+                // Agregar la nueva opción con el mensaje
+                const option = document.createElement('option');
+                option.textContent = data.message;
+                option.value = data.message;
+                progressDropdown.appendChild(option);
     
                 // Si el progreso está en curso, sigue actualizando cada 1 segundo
                 if (data.status === 'running') {
@@ -122,13 +161,35 @@ let inferenceRunning = false;
     }
 
     function stopInference() {    
-        fetch('/stop_inference', {method: 'POST'})
+    fetch('/stop_inference', { method: 'POST' })
         .then(response => {
             inferenceRunning = false;
             toggleButton();
+
+            // Reseteamos el tiempo de progreso
+            const progressTime = document.getElementById('progress-time');
+            if (progressTime) {
+                progressTime.innerText = "";  // Reseteamos el tiempo mostrado
+            }
+
+            // Reseteamos la barra de progreso
+            const progressBar = document.getElementById('progress-bar-fill');
+            if (progressBar) {
+                // Aseguramos que no haya transiciones activas en este momento
+                progressBar.style.transition = 'none';  // Elimina cualquier transición
+
+                // Reiniciamos la barra de progreso
+                progressBar.style.width = '0%';  // Reiniciamos el ancho de la barra
+                progressBar.textContent = '0%';  // Reiniciamos el texto de la barra
+
+                // Restauramos la transición después de un pequeño retraso para la siguiente actualización
+                setTimeout(() => {
+                    progressBar.style.transition = '';  // Restauramos la transición
+                }, 100);
+            }
         })
-        .catch(error => console.error('Error stopping inference', error))
-    }
+        .catch(error => console.error('Error stopping inference:', error));
+}
 
     document.querySelector('form[action="/run_inference"]').addEventListener('submit', function(event) {
         event.preventDefault();
@@ -176,5 +237,69 @@ let inferenceRunning = false;
         }
     });
 </script>
+<script>
+    let pollingInterval = setInterval(checkFrames, 1000);
+    let currentFrameIndex = 0;
+    let frames = [];
+    let frameInterval = null;
+
+    function checkFrames() {
+        fetch('/check_frames')
+            .then(response => response.json())
+            .then(data => {
+                if (data.frames_available) {
+                    clearInterval(pollingInterval);
+                    document.getElementById('waiting-message').style.display = 'none';
+                    loadFrames();
+                } else {
+                    document.getElementById('waiting-message').style.display = 'block';
+                }
+            })
+            .catch(error => console.error('Error checking frames:', error));
+    }
+
+    function loadFrames() {
+        fetch('/get_frames')
+            .then(response => response.json())
+            .then(data => {
+                frames = data.frames;
+                document.getElementById('frameSlider').max = frames.length - 1;
+                showFrame();
+            })
+            .catch(error => console.error('Error loading frames:', error));
+    }
+
+    function showFrame() {
+        if (frames.length > 0) {
+            const frameName = frames[currentFrameIndex];
+            const imgElement = document.getElementById('frame');
+            imgElement.src = `/frames/${frameName}`;
+            imgElement.style.display = 'block';
+            document.getElementById('frameSlider').value = currentFrameIndex;
+        }
+    }
+
+    function playFrames() {
+        if (!frameInterval) {
+            frameInterval = setInterval(() => {
+                currentFrameIndex = (currentFrameIndex + 1) % frames.length;
+                showFrame();
+            }, 1000 / 51); 
+        }
+    }
+
+    function pauseFrames() {
+        clearInterval(frameInterval);
+        frameInterval = null;
+    }
+
+    function sliderChanged() {
+        pauseFrames();
+        currentFrameIndex = parseInt(document.getElementById('frameSlider').value);
+        showFrame();
+    }
+</script>
+
+
 </body>
 </html>
