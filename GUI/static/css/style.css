@@ -353,3 +353,149 @@ menu li.active a {
     cursor: pointer;
     width: 50%;
 }
+
+/* Baseline Calculation page */
+
+.title-baseline {
+    text-align: center;
+}
+
+.baseline-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin: 20px;
+    gap: 20px;
+}
+
+.baseline-left {
+    flex: 1;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.baseline-left label {
+    display: flex;
+    justify-content: space-between; /* texto a la izquierda, círculo a la derecha */
+    align-items: center;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.baseline-left input {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 4px;
+}
+
+.baseline-right {
+    flex: 1.2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.image-container {
+    background: #f9f9f9;
+    position: relative;
+    display: inline-block;
+}
+
+.image-container img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Cards */
+.card {
+    background-color: #e6f7f5; 
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    flex: 1;
+    text-align: center; 
+}
+
+/* Canvas overlay */
+
+#tendon-frame {
+    display: block;
+    width: 100%;   
+    height: auto;
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+#overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: auto; 
+    width: 100%; 
+    height: 100%;
+    border: none; 
+}
+
+.color-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-left: 10px;
+    flex-shrink: 0; /* evita que se deforme */
+}
+
+/* Coordinates input styles */
+
+.coord-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;         /* espacio entre elementos */
+    margin-top: 10px;
+}
+
+.coord-row label {
+    flex: 1;           /* que el label ocupe espacio proporcional */
+    font-weight: bold;
+}
+
+.coord-row input {
+    flex: 1.2;         /* input más ancho que el label */
+    padding: 4px;
+}
+
+.coord-row .color-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Calculate tendon length button */
+
+/* === Botón Calcular Tendón === */
+#calculate-btn {
+    background-color: #46505A;   /* verde agua como el resto */
+    color: white;              /* gris oscuro */
+    border: solid 1px #46505A;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 8px 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+#calculate-btn:hover {
+    background-color: #46505A;   /* gris oscuro */
+    color: white;
+    transform: scale(1.05);      /* pequeño zoom */
+}
+
+#calculate-btn:active {
+    transform: scale(0.97);      /* feedback al click */
+}

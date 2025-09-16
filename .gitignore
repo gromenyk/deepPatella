@@ -1,4 +1,3 @@
-transunet_pt/model/
-transunet_pt/data/
 model/TU_Synapse224/TU_pretrain_R50-ViT-B_16_skip3_epo5_bs12_lr0.005_224/epoch_4.pth
 model/vit_checkpoint/imagenet21k/R50+ViT-B_16.npz
+GUI/deepPatella

@@ -5,17 +5,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeepPatella</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/tendonCurve.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/baseline.js') }}"></script>
 </head>
 <body>
     <div class="banner">
         <h1>DeepPatella</h1>
         <p>Automatic quantification of patellar tendon stiffness</p>
     </div>
+
     <menu>
         <li><a href="{{ url_for('home') }}">Configurations & Visualizations</a></li>
         <li><a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a></li>
         <li><a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a></li>
     </menu>
-    <h1>BASELINE CALCULATION</h1>
+
+    <div class="baseline_calculation">
+        <div class="title-baseline">
+            <h1>BASELINE CALCULATION</h1>
+            <p>This section is to obtain the tendon length at rest.</p>
+            <p>Here you will find the first frame with the distal and proximal tendon-bone insertions predicted by the model. You can keep them or you can drag and drop them if you think they are misplaced.</p>
+            <p>Also, to effectively calculate the tendon length, please add at least two more points in the image so the slack of the tendon is taken into account.</p>
+        </div>
+
+        <div class="baseline-container">
+            <!-- 📌 Bloque Izquierdo -->
+            <div class="baseline-left">
+
+                <!-- Card de Coordenadas -->
+                <div class="card">
+                    <h3>Coordinates</h3>
+
+                    <label for="distal">
+                        Distal Tendon-Bone Insertion Coordinates
+                        <span class="color-dot" style="background-color:#00FF00;"></span>
+                    </label>
+                    <input type="text" id="distal" value="(134.7, 92.1)" readonly>
+
+                    <label for="proximal">
+                        Proximal Tendon-Bone Insertion Coordinates
+                        <span class="color-dot" style="background-color:#00BFFF;"></span>
+                    </label>
+                    <input type="text" id="proximal" value="(340, 95)" readonly>
+
+                    <label for="extra1">
+                        Extra Coordinates 1
+                        <span class="color-dot" style="background-color:#FFA500;"></span>
+                    </label>
+                    <input type="text" id="extra1" placeholder="Click on the image" readonly>
+
+                    <label for="extra2">
+                        Extra Coordinates 2
+                        <span class="color-dot" style="background-color:#FF00FF;"></span>
+                    </label>
+                    <input type="text" id="extra2" placeholder="Click on the image" readonly>
+                </div>
+
+                <!-- Card de Resultados -->
+                <div class="card calculation-block"> 
+                    <h3>Results</h3>
+                    <button id="calculate-btn">Calculate tendon length at rest</button>
+                    <label for="tendon-length">Tendon length (px)</label>
+                    <input type="text" id="tendon-length" readonly>
+                </div>
+            </div>
+
+            <!-- 📌 Bloque Derecho -->
+            <div class="baseline-right card">
+                <h3>First Frame</h3>
+                <div class="image-container">
+                    <img id="tendon-frame" src="{{ url_for('static', filename='img/frame_resized.png') }}" alt="Frame de prueba">
+                    <canvas id="overlay"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
