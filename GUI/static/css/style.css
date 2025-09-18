@@ -499,3 +499,8 @@ menu li.active a {
 #calculate-btn:active {
     transform: scale(0.97);      /* feedback al click */
 }
+
+#distal,
+#proximal {
+    color: #7b7b7b;
+}

@@ -8,7 +8,7 @@
     <script src="{{ url_for('static', filename='js/tendonCurve.js') }}"></script>
     <script src="{{ url_for('static', filename='js/baseline.js') }}"></script>
 </head>
-<body>
+<body data-csv-url="{{ url_for('static', filename='data/insertion_coords.csv') }}">
     <div class="banner">
         <h1>DeepPatella</h1>
         <p>Automatic quantification of patellar tendon stiffness</p>
@@ -40,13 +40,13 @@
                         Distal Tendon-Bone Insertion Coordinates
                         <span class="color-dot" style="background-color:#00FF00;"></span>
                     </label>
-                    <input type="text" id="distal" value="(134.7, 92.1)" readonly>
+                    <input type="text" id="distal" value="Waiting for inference to be ready..." readonly>
 
                     <label for="proximal">
                         Proximal Tendon-Bone Insertion Coordinates
                         <span class="color-dot" style="background-color:#00BFFF;"></span>
                     </label>
-                    <input type="text" id="proximal" value="(340, 95)" readonly>
+                    <input type="text" id="proximal" value="Waiting for inference to be ready..." readonly>
 
                     <label for="extra1">
                         Extra Coordinates 1
@@ -74,7 +74,9 @@
             <div class="baseline-right card">
                 <h3>First Frame</h3>
                 <div class="image-container">
-                    <img id="tendon-frame" src="{{ url_for('static', filename='img/frame_resized.png') }}" alt="Frame de prueba">
+                    <img id="tendon-frame"
+                        src="{{ url_for('static', filename='img/placeholder.png') }}"
+                        data-frame-url="{{ url_for('static', filename='img/frame_first.png') }}">
                     <canvas id="overlay"></canvas>
                 </div>
             </div>

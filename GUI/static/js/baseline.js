@@ -5,11 +5,22 @@ window.addEventListener("load", () => {
     const canvas = document.getElementById("overlay");
     const ctx = canvas.getContext("2d");
 
+    // === Placeholder inicial ===
+    function drawPlaceholder() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ccc"; // gris de fondo
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#000"; // texto negro
+        ctx.font = "20px Arial";
+        ctx.fillText("Esperando primer frame...", 40, canvas.height / 2);
+    }
+
     // Ajusta canvas al tamaño de la imagen en pantalla
     function resizeCanvas() {
         const rect = img.getBoundingClientRect();
         canvas.width = rect.width;
         canvas.height = rect.height;
+        drawPlaceholder();   // placeholder al inicio
     }
     resizeCanvas();
 
@@ -24,7 +35,7 @@ window.addEventListener("load", () => {
         return match ? [parseFloat(match[1]), parseFloat(match[2])] : null;
     }
 
-    // Puntos iniciales (predichos, no eliminables)
+    // Puntos iniciales (predichos, no eliminables con click derecho)
     let points = [
         {
             coords: parseCoords(document.getElementById("distal").value),
@@ -65,7 +76,7 @@ window.addEventListener("load", () => {
             if (!p.coords) return false;
             const dx = x - p.coords[0];
             const dy = y - p.coords[1];
-            return Math.sqrt(dx * dx + dy * dy) < 10;
+            return Math.sqrt(dx * dx + dy * dy) < 15; // más tolerancia
         });
     }
 
@@ -152,7 +163,7 @@ window.addEventListener("load", () => {
         const y = e.clientY - rect.top;
 
         const point = getPointAt(x, y);
-        if (point && !point.fixed) {
+        if (point && !point.fixed) { // sólo los extras se pueden eliminar
             const input = document.getElementById(point.inputId);
             if (input) input.value = "";
 
@@ -185,4 +196,71 @@ window.addEventListener("load", () => {
         // Mostrar longitud en input
         document.getElementById("tendon-length").value = length.toFixed(2);
     });
+
+    // === Polling para cargar el frame real cuando esté disponible ===
+    const frameUrl = img.getAttribute("data-frame-url");
+
+    function checkFrame() {
+        fetch(frameUrl, { cache: "no-store" })
+            .then(response => {
+                if (response.ok) {
+                    img.src = frameUrl + "?t=" + new Date().getTime();
+                } else {
+                    setTimeout(checkFrame, 1000); // reintenta
+                }
+            })
+            .catch(() => setTimeout(checkFrame, 1000));
+    }
+    checkFrame();
+
+    // === Polling para cargar CSV de coordenadas ===
+        // === Polling para cargar CSV de coordenadas ===
+    const csvUrl = document.body.getAttribute("data-csv-url");
+    let csvLoaded = false; // bandera para que solo cargue una vez
+
+    function checkCSV() {
+        if (csvLoaded) return; // si ya cargamos, no volver a correr
+
+        fetch(csvUrl, { cache: "no-store" })
+            .then(response => {
+                if (!response.ok) throw new Error("CSV not found");
+                return response.text();
+            })
+            .then(data => {
+                const rows = data.trim().split("\n");
+                if (rows.length < 2) return;
+                const values = rows[1].split(",");
+
+                // ⚠️ Reordenando las columnas
+                const distalX = parseFloat(values[1]).toFixed(1);   // segunda columna
+                const distalY = parseFloat(values[0]).toFixed(1);   // primera columna
+                const proximalX = parseFloat(values[3]).toFixed(1); // cuarta columna
+                const proximalY = parseFloat(values[2]).toFixed(1); // tercera columna
+
+                // Actualizar inputs
+                const distalInput = document.getElementById("distal");
+                const proximalInput = document.getElementById("proximal");
+                distalInput.value = `(${distalX}, ${distalY})`;
+                proximalInput.value = `(${proximalX}, ${proximalY})`;
+
+                // Actualizar points
+                const distalPoint = points.find(p => p.inputId === "distal");
+                if (distalPoint) distalPoint.coords = [parseFloat(distalX), parseFloat(distalY)];
+                const proximalPoint = points.find(p => p.inputId === "proximal");
+                if (proximalPoint) proximalPoint.coords = [parseFloat(proximalX), parseFloat(proximalY)];
+
+                draw();
+
+                // ✅ solo cargar una vez
+                csvLoaded = true;
+                console.log("CSV cargado, polling detenido");
+            })
+
+            .catch(() => {
+                // aún no está disponible, reintentar
+                setTimeout(checkCSV, 3000);
+            });
+    }
+    checkCSV();
+
 });

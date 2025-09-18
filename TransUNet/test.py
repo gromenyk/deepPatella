@@ -111,6 +111,28 @@ def copy_frames_to_static():
 
     print('[frames_ready.flag creado]')
 
+# Function to copy insertion_coords.csv to static
+def copy_csv_to_static():
+    project_root_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))
+
+    source_file = os.path.join(project_root_dir, 'TransUNet', 'outputs', 'insertion_coords.csv')
+    target_dir = os.path.join(project_root_dir, 'GUI', 'static', 'data')
+    target_file = os.path.join(target_dir, 'insertion_coords.csv')
+
+    if not os.path.exists(source_file):
+        print(f"[ERROR] El archivo {source_file} no existe. Verifica que la inferencia haya generado insertion_coords.csv")
+        return
+
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+        print(f"[INFO] Carpeta creada: {target_dir}")
+
+    try:
+        shutil.copy(source_file, target_file)
+        print(f"[UI] Copiado {source_file} → {target_file}")
+    except Exception as e:
+        print(f"[ERROR] No se pudo copiar {source_file}: {e}")
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--volume_path', type=str,
                     default='../data/Synapse/test_vol_h5', help='root dir for validation volume data')  # for acdc volume_path=root_dir
@@ -179,6 +201,36 @@ try:
 except Exception as e:
     print(f'Error encountered during video pre-processing: {e}')
     exit(1)
+
+# Copy first frame in 512 x 512 to static folder for baseline calculation
+try:
+    frames = np.load(args.original_images)
+    first_frame = frames[0]
+
+    # Convertir a escala de grises si es RGB/BGR
+    if first_frame.ndim == 3 and first_frame.shape[2] == 3:
+        import cv2
+        first_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+
+    # Normalizar a [0, 255]
+    first_frame = first_frame.astype(np.float32)
+    first_frame = (first_frame - first_frame.min()) / (first_frame.max() - first_frame.min() + 1e-8)
+    first_frame = (first_frame * 255).astype(np.uint8)
+
+    img = Image.fromarray(first_frame, mode='L')
+
+    project_root_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))
+    static_img_dir = os.path.join(project_root_dir, 'GUI', 'static', 'img')
+    os.makedirs(static_img_dir, exist_ok=True)
+
+    output_path = os.path.join(static_img_dir, 'frame_first.png')
+    img.save(output_path)
+
+    print(f"[UI] First frame saved in {output_path}")
+except Exception as e:
+    print(f"[ERROR] Could not extract the first frame {e}")
+
+
 
 end_time_video_splitting = time.time()
 log_time_to_csv('Video splitting', start_time_video_splitting, end_time_video_splitting)
@@ -398,6 +450,7 @@ log_time_to_csv('Video corrected by Kalman filter reconstruction finished', star
 print('[PROGRESS 100.0] Finished reconstructing video with Kalman corrected coordinates')
 
 copy_frames_to_static()
+copy_csv_to_static()
 
 print('[Process Completed]')
 
