@@ -15,6 +15,7 @@
         <li><a href="{{ url_for('home') }}">Configurations & Visualizations</a></li>
         <li><a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a></li>
         <li><a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a></li>
+        <li id="reset-btn">Reset UI</li>
     </menu>
     
     <div class="main">
@@ -300,6 +301,6 @@ let inferenceRunning = false;
     }
 </script>
 
-
+<script src="{{ url_for('static', filename='js/reset_ui.js') }}"></script>
 </body>
 </html>

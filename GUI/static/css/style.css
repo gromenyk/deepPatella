@@ -499,3 +499,28 @@ menu li.active a {
 #calculate-btn:active {
     transform: scale(0.97);      /* feedback al click */
 }
+
+#convert-btn {
+    margin-top: 15px;
+    background-color: #46505A;
+    color: white;
+    border: solid 1px #46505A;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 8px 16px;
+}
+
+/* Reset button styles */
+
+#reset-btn {
+    background-color:#D20537;
+    height: 60%;
+    border-radius: 5px;
+}
+
+#reset-btn:hover {
+    background-color: #e3264a;
+    cursor: pointer;
+    transform: scale(1.03);
+    transition: all ease-in-out;
+}

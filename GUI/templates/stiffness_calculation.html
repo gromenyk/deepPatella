@@ -15,7 +15,9 @@
         <li><a href="{{ url_for('home') }}">Configurations & Visualizations</a></li>
         <li><a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a></li>
         <li><a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a></li>
+        <li id="reset-btn">Reset UI</li>
     </menu>        
     <H1>STIFFNESS CALCULATION</H1>
+<script src="{{ url_for('static', filename='js/reset_ui.js') }}"></script>
 </body>
 </html>

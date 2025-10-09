@@ -8,7 +8,7 @@
     <script src="{{ url_for('static', filename='js/tendonCurve.js') }}"></script>
     <script src="{{ url_for('static', filename='js/baseline.js') }}"></script>
 </head>
-<body>
+<body data-csv-url="{{ url_for('static', filename='data/insertion_coords.csv') }}">
     <div class="banner">
         <h1>DeepPatella</h1>
         <p>Automatic quantification of patellar tendon stiffness</p>
@@ -18,6 +18,7 @@
         <li><a href="{{ url_for('home') }}">Configurations & Visualizations</a></li>
         <li><a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a></li>
         <li><a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a></li>
+        <li id="reset-btn">Reset UI</li>
     </menu>
 
     <div class="baseline_calculation">
@@ -40,13 +41,13 @@
                         Distal Tendon-Bone Insertion Coordinates
                         <span class="color-dot" style="background-color:#00FF00;"></span>
                     </label>
-                    <input type="text" id="distal" value="(134.7, 92.1)" readonly>
+                    <input type="text" id="distal" value="Waiting for inference to be ready..." readonly>
 
                     <label for="proximal">
                         Proximal Tendon-Bone Insertion Coordinates
                         <span class="color-dot" style="background-color:#00BFFF;"></span>
                     </label>
-                    <input type="text" id="proximal" value="(340, 95)" readonly>
+                    <input type="text" id="proximal" value="Waiting for inference to be ready..." readonly>
 
                     <label for="extra1">
                         Extra Coordinates 1
@@ -64,9 +65,21 @@
                 <!-- Card de Resultados -->
                 <div class="card calculation-block"> 
                     <h3>Results</h3>
-                    <button id="calculate-btn">Calculate tendon length at rest</button>
+
+                    <!-- Botón para calcular longitud -->
+                    <button id="calculate-btn">Calculate tendon length (pixels)</button>
+
                     <label for="tendon-length">Tendon length (px)</label>
                     <input type="text" id="tendon-length" readonly>
+
+                    <label for="conversion-factor">Pixel to Millimeter Conversion Factor</label>
+                    <input type="text" id="conversion-factor" placeholder="e.g. 6.48">
+
+                    <!-- Botón para convertir -->
+                    <button id="convert-btn">Convert to mm</button>
+
+                    <label for="tendon-length-mm">Tendon length (mm)</label>
+                    <input type="text" id="tendon-length-mm" readonly>
                 </div>
             </div>
 
@@ -74,11 +87,14 @@
             <div class="baseline-right card">
                 <h3>First Frame</h3>
                 <div class="image-container">
-                    <img id="tendon-frame" src="{{ url_for('static', filename='img/frame_resized.png') }}" alt="Frame de prueba">
+                    <img id="tendon-frame"
+                        src="{{ url_for('static', filename='img/placeholder.png') }}"
+                        data-frame-url="{{ url_for('static', filename='img/frame_first.png') }}">
                     <canvas id="overlay"></canvas>
                 </div>
             </div>
         </div>
     </div>
+<script src="{{ url_for('static', filename='js/reset_ui.js') }}"></script>
 </body>
 </html>

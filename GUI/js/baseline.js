@@ -197,26 +197,6 @@ window.addEventListener("load", () => {
         document.getElementById("tendon-length").value = length.toFixed(2);
     });
 
-    // === Botón para convertir px → mm ===
-    document.getElementById("convert-btn").addEventListener("click", () => {
-        const pxValue = parseFloat(document.getElementById("tendon-length").value);
-        const factor = parseFloat(document.getElementById("conversion-factor").value);
-
-        if (isNaN(pxValue)) {
-            alert("You need to calculate the tendon length in pixels first.");
-            return;
-        }
-
-        if (isNaN(factor) || factor <= 0) {
-            alert("Please enter a valid conversion factor (px per mm).");
-            return;
-        }
-
-        const mmValue = pxValue / factor;
-        document.getElementById("tendon-length-mm").value = mmValue.toFixed(2);
-    });
-
-
     // === Polling para cargar el frame real cuando esté disponible ===
     const frameUrl = img.getAttribute("data-frame-url");
 

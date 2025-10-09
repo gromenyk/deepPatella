@@ -1,6 +1,7 @@
 import os
 import subprocess
 import time
+import shutil
 from flask import Flask, render_template, request, jsonify, send_from_directory, Response, send_file
 from threading import Thread, Event
 
@@ -169,6 +170,67 @@ def get_frames():
 @app.route('/frames/<filename>')
 def get_frame(filename):
     return send_from_directory(os.path.join('static', 'frames'), filename)
+
+@app.route("/cleanup", methods=["DELETE"])
+def cleanup():
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    # a) Folders with .gitkeep
+    keep_with_gitkeep = [
+        os.path.join(project_root, "data", "Synapse", "test_vol_h5"),
+    ]
+
+    # b) Folders to recreate without .gitkeep
+    keep_folders = []
+
+    # c) Disposable folders
+    disposable_folders = [
+        os.path.join(project_root, "TransUNet", "center_of_mass_over_pred_images"),
+        os.path.join(project_root, "TransUNet", "test_log"),
+        os.path.join(project_root, "GUI", "static", "data"),
+        os.path.join(project_root, "GUI", "static", "frames"),
+        os.path.join(project_root, "TransUNet", "outputs")
+    ]
+
+    # d) Disposable files
+    disposable_files = [
+        os.path.join(project_root, "data", "Synapse", "original_images.npy"),
+        os.path.join(project_root, "GUI", "static", "img","frame_first.png"),
+        os.path.join(project_root, "TransUNet","datasets", "videos", "original_video.mp4"),
+        os.path.join(project_root, "TransUNet","lists","lists_Synapse","test_vol.txt"),
+        os.path.join(project_root, "TransUNet", "process_times.csv")
+    ]
+
+    try:
+        # a) Folders with gitkeep
+        for folder in keep_with_gitkeep:
+            if os.path.isdir(folder):
+                shutil.rmtree(folder)
+            os.makedirs(folder, exist_ok=True)
+            with open(os.path.join(folder, ".gitkeep"), "w") as f:
+                pass
+
+        # b) Folders to recreate without gitkeep
+        for folder in keep_folders:
+            if os.path.isdir(folder):
+                shutil.rmtree(folder)
+            os.makedirs(folder, exist_ok=True)
+
+        # c) Disposable folders
+        for folder in disposable_folders:
+            if os.path.isdir(folder):
+                shutil.rmtree(folder)
+
+        # d) Disposabe files
+        for file in disposable_files:
+            if os.path.isfile(file):
+                os.remove(file)
+
+        return jsonify({"message": "Reset worked perfectly"}), 200
+
+    except Exception as e:
+        return jsonify({"message": f"Error in reseting: {str(e)}"}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
