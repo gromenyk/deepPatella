@@ -214,6 +214,9 @@ window.addEventListener("load", () => {
 
         const mmValue = pxValue / factor;
         document.getElementById("tendon-length-mm").value = mmValue.toFixed(2);
+
+        localStorage.setItem("deepPatella_baseline_mm", mmValue.toFixed(2));
+        localStorage.setItem("deepPatella_conversion_factor", factor);
     });
 
 

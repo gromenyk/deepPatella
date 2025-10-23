@@ -2,6 +2,10 @@ import os
 import subprocess
 import time
 import shutil
+from scipy import signal
+from scipy import interpolate
+import numpy as np
+import pandas as pd
 from flask import Flask, render_template, request, jsonify, send_from_directory, Response, send_file
 from threading import Thread, Event
 
@@ -138,7 +142,7 @@ def get_progress():
     })   
 
 def allowed_file(filename):
-    allowed_extensions = {'mp4'}
+    allowed_extensions = {'mp4', 'avi'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 @app.route('/check_frames')
@@ -170,6 +174,27 @@ def get_frames():
 @app.route('/frames/<filename>')
 def get_frame(filename):
     return send_from_directory(os.path.join('static', 'frames'), filename)
+
+@app.route('/upload_force', methods=['POST'])
+def upload_force():
+    if 'file' not in request.files:
+        return jsonify({'message': 'No file part in request'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'message': 'No file selected'}), 400
+
+    if not file.filename.lower().endswith('.xlsx'):
+        return jsonify({'message': 'Invalid file type. Please upload an .xlsx file.'}), 400
+
+    # Guardar en GUI/static/data/force_ramp.xlsx
+    save_path = os.path.join(app.static_folder, 'data', 'force_ramp.xlsx')
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    file.save(save_path)
+
+    print(f"✅ Force ramp file saved at: {save_path}")
+    return jsonify({'message': 'Force ramp file uploaded successfully!'})
+
 
 @app.route("/cleanup", methods=["DELETE"])
 def cleanup():
@@ -231,6 +256,49 @@ def cleanup():
     except Exception as e:
         return jsonify({"message": f"Error in reseting: {str(e)}"}), 500
 
+@app.route('/process_force', methods=['POST'])
+def process_force():
+    try:
+        # Rutas
+        data_dir = os.path.join(os.path.dirname(__file__), "static", "data")
+        ramp_path = os.path.join(data_dir, "force_ramp.xlsx")
+        coords_path = os.path.join(data_dir, "insertion_coords.csv")
+        output_path = os.path.join(data_dir, "force_ramp_processed.csv")
+
+        # --- Leer Excel ---
+        df_force = pd.read_excel(ramp_path)
+
+        # --- Filtrar según Sync ---
+        df_force = df_force[df_force["Sync"] > 3.9]
+
+        # --- Leer coordenadas para conocer cantidad de frames ---
+        df_coords = pd.read_csv(coords_path)
+        num_frames = len(df_coords)
+
+        # --- Downsampling con SciPy ---
+        force_resampled = signal.resample(df_force["Force_right"], num_frames)
+        sync_resampled = signal.resample(df_force["Sync"], num_frames)
+        trigger_resampled = signal.resample(df_force["Digital trigger"], num_frames)
+
+        df_resampled = pd.DataFrame({
+            "Frame": range(1, num_frames + 1),
+            "Force_right": force_resampled,
+            "Sync": sync_resampled,
+            "Digital_trigger": trigger_resampled
+        })
+
+        df_resampled.to_csv(output_path, index=False)
+
+        return jsonify({
+            "message": "✅ Force ramp processed successfully",
+            "output_file": "static/data/force_ramp_processed.csv",
+            "frames": num_frames
+        }), 200
+    
+
+    except Exception as e:
+        print(f"❌ Error processing force ramp: {e}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
