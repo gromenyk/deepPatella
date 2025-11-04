@@ -77,78 +77,65 @@ window.addEventListener("load", () => {
     }
 });
 
-// === Leer CSV, corregir columnas y calcular elongación ===
+// === Leer coordenadas Kalman y calcular elongación (en mm) ===
 async function loadAndProcessCSV() {
-    const response = await fetch("/static/data/insertion_coords.csv");
-    const text = await response.text();
+    const [distalResp, proximalResp] = await Promise.all([
+        fetch("/static/data/kalman_coords_distal.csv").then(r => r.text()),
+        fetch("/static/data/kalman_coords_proximal.csv").then(r => r.text())
+    ]);
 
-    const rows = text.trim().split("\n");
-    rows.shift(); // eliminar encabezado
+    const distalRows = distalResp.trim().split("\n").slice(1);
+    const proximalRows = proximalResp.trim().split("\n").slice(1);
+    const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor")) || 1;
 
-    const data = rows.map((row, index) => {
-        const [distal_X, distal_y, proximal_x, proximal_y, FPS] = row.split(",").map(Number);
+    const data = distalRows.map((row, i) => {
+        const colsD = row.split(",").map(Number);
+        const colsP = proximalRows[i].split(",").map(Number);
+        const dx = colsD.at(-2);
+        const dy = colsD.at(-1);
+        const px = colsP.at(-2);
+        const py = colsP.at(-1);
 
-        // Reordenar columnas (fix)
-        const distal_x = distal_y;
-        const distal_y_fixed = distal_X;
-        const proximal_x_fixed = proximal_y;
-        const proximal_y_fixed = proximal_x;
-
-        // Calcular distancia euclideana
-        const elongation = Math.sqrt(
-            Math.pow(distal_x - proximal_x_fixed, 2) +
-            Math.pow(distal_y_fixed - proximal_y_fixed, 2)
-        );
-
-        // Conversión px → mm
-        const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor")) || 1;
-        const elongation_mm = elongation / factor;
-
-        return { frame: index + 1, elongation_mm };
+        const elongation_mm = Math.sqrt((dy - py) ** 2 + (dx - px) ** 2) / factor;
+        return { frame: i + 1, elongation_mm };
     });
 
-    console.log("✅ Ejemplo de fila procesada:", data[0]);
+    console.log("✅ Ejemplo de fila procesada (Kalman):", data[0]);
     return data;
 }
 
-// === Calcular longitud del tendón y elongación relativa ===
+// === Calcular longitud del tendón y elongación relativa (usando Kalman) ===
 async function computeTendonElongation() {
-    const response = await fetch("/static/data/insertion_coords.csv");
-    const text = await response.text();
+    const [distalResp, proximalResp] = await Promise.all([
+        fetch("/static/data/kalman_coords_distal.csv").then(r => r.text()),
+        fetch("/static/data/kalman_coords_proximal.csv").then(r => r.text())
+    ]);
 
-    const rows = text.trim().split("\n");
-    rows.shift(); // eliminar encabezado
-
+    const distalRows = distalResp.trim().split("\n").slice(1);
+    const proximalRows = proximalResp.trim().split("\n").slice(1);
     const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor")) || 1;
     const baseline = parseFloat(localStorage.getItem("deepPatella_baseline_mm")) || 0;
 
-    const elongationData = rows.map((row, index) => {
-        const [distal_X, distal_y, proximal_x, proximal_y, FPS] = row.split(",").map(Number);
+    const elongationData = distalRows.map((row, i) => {
+        const colsD = row.split(",").map(Number);
+        const colsP = proximalRows[i].split(",").map(Number);
+        const dx = colsD.at(-2);
+        const dy = colsD.at(-1);
+        const px = colsP.at(-2);
+        const py = colsP.at(-1);
 
-        // Reordenar columnas si es necesario
-        const distal_x = distal_y;
-        const distal_y_fixed = distal_X;
-        const proximal_x_fixed = proximal_y;
-        const proximal_y_fixed = proximal_x;
-
-        // Longitud actual (px)
-        const length_px = Math.sqrt(
-            Math.pow(distal_x - proximal_x_fixed, 2) +
-            Math.pow(distal_y_fixed - proximal_y_fixed, 2)
-        );
-
-        // Conversión px → mm
+        const length_px = Math.sqrt((dy - py) ** 2 + (dx - px) ** 2);
         const length_mm = length_px / factor;
-
-        // Elongación respecto al baseline
         const deltaL = length_mm - baseline;
 
-        return { frame: index + 1, length_mm, deltaL };
+        return { frame: i + 1, length_mm, deltaL };
     });
 
-    console.log("✅ Ejemplo elongationData:", elongationData[0]);
+    console.log("✅ Ejemplo elongationData (Kalman):", elongationData[0]);
     return elongationData;
 }
+
+
 
 // === Graficar SOLO la elongación ===
 function plotElongation(data) {
@@ -317,9 +304,10 @@ async function plotElongationOnly() {
         chartHysteresis = new Chart(ctx, {
             type: "line",
             data: {
+                labels: frames,
                 datasets: [{
-                    label: "Force–Elongation (ΔL vs Force)",
-                    data: paired,
+                    label: "Elongation ΔL (mm)",
+                    data: deltaL,
                     borderColor: "#00ffaa",
                     borderWidth: 2,
                     pointRadius: 0,
@@ -327,18 +315,16 @@ async function plotElongationOnly() {
                 }]
             },
             options: {
-                parsing: false,
                 responsive: true,
                 animation: false,
                 scales: {
                     x: {
-                        type: "linear",
-                        title: { display: true, text: "Elongation ΔL (mm)", color: "#fff" },
+                        title: { display: true, text: "Frame", color: "#fff" },
                         ticks: { color: "#fff" },
                         grid: { color: "rgba(255,255,255,0.1)" }
                     },
                     y: {
-                        title: { display: true, text: "Tendon Force (N)", color: "#fff" },
+                        title: { display: true, text: "Elongation ΔL (mm)", color: "#fff" },
                         ticks: { color: "#fff" },
                         grid: { color: "rgba(255,255,255,0.1)" }
                     }
@@ -347,10 +333,9 @@ async function plotElongationOnly() {
             }
         });
     } else {
-        chartHysteresis.data.datasets[0].data = paired;
+        chartHysteresis.data.datasets[0].data = deltaL;
         chartHysteresis.update();
     }
-
 
     console.log("✅ Elongation-only curve plotted");
 }

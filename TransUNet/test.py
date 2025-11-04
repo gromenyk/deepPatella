@@ -115,23 +115,31 @@ def copy_frames_to_static():
 def copy_csv_to_static():
     project_root_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))
 
-    source_file = os.path.join(project_root_dir, 'TransUNet', 'outputs', 'insertion_coords.csv')
+    # Archivos de origen
+    files_to_copy = [
+        ('insertion_coords.csv', 'insertion_coords.csv'),
+        ('kalman_coords_distal.csv', 'kalman_coords_distal.csv'),
+        ('kalman_coords_proximal.csv', 'kalman_coords_proximal.csv')
+    ]
+
     target_dir = os.path.join(project_root_dir, 'GUI', 'static', 'data')
-    target_file = os.path.join(target_dir, 'insertion_coords.csv')
+    os.makedirs(target_dir, exist_ok=True)
 
-    if not os.path.exists(source_file):
-        print(f"[ERROR] El archivo {source_file} no existe. Verifica que la inferencia haya generado insertion_coords.csv")
-        return
+    for src_name, dst_name in files_to_copy:
+        source_file = os.path.join(project_root_dir, 'TransUNet', 'outputs', src_name)
+        target_file = os.path.join(target_dir, dst_name)
 
-    if not os.path.exists(target_dir):
-        os.makedirs(target_dir)
-        print(f"[INFO] Carpeta creada: {target_dir}")
+        if not os.path.exists(source_file):
+            print(f"[⚠️] El archivo {src_name} no existe en {os.path.dirname(source_file)}. Se omite la copia.")
+            continue
 
-    try:
-        shutil.copy(source_file, target_file)
-        print(f"[UI] Copiado {source_file} → {target_file}")
-    except Exception as e:
-        print(f"[ERROR] No se pudo copiar {source_file}: {e}")
+        try:
+            shutil.copy(source_file, target_file)
+            print(f"[UI] Copiado {source_file} → {target_file}")
+        except Exception as e:
+            print(f"[ERROR] No se pudo copiar {source_file}: {e}")
+
+# ------ #
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--volume_path', type=str,
