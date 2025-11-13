@@ -2,6 +2,8 @@ let chartElongation = null;
 let chartHysteresis = null;
 let chartTF80 = null;
 
+const USE_LOWER_LEG_MOMENT_ARM = true; // Change to false to not use the lower leg moment arm in stiffness calculation (debugging)
+
 // === Al cargar la página: mostrar baseline guardado ===
 window.addEventListener("load", () => {
     const baselineValue = localStorage.getItem("deepPatella_baseline_mm");
@@ -174,17 +176,32 @@ async function plotForceRamp() {
     const rows = text.trim().split("\n");
     rows.shift();
 
+    // Leer Patellar Tendon Moment Arm
     const momentArmInput = document.getElementById("moment-arm");
     let momentArm = parseFloat(momentArmInput?.value);
     if (isNaN(momentArm) || momentArm <= 0) {
         momentArm = 0.04;
-        console.log("⚙️ Using default moment arm = 0.04 m");
+        console.log("⚙️ Using default patellar tendon moment arm = 0.04 m");
     }
 
+    // Leer Lower Leg Moment Arm
+    const lowerLegMomentArmInput = document.getElementById("lower-leg-moment-arm");
+    let lowerLegMomentArm = parseFloat(lowerLegMomentArmInput?.value);
+    if (isNaN(lowerLegMomentArm) || lowerLegMomentArm <= 0) {
+        lowerLegMomentArm = 0.28;
+        console.log("⚙️ Using default lower leg moment arm = 0.28 m");
+    }
+
+    // Calcular fuerza en el tendón: (Torque × moment arm pierna) / moment arm tendón
     const data = rows.map(row => {
-        const [frame, forceRight] = row.split(",").map(Number);
-        const tendonForce = forceRight / momentArm;
-        return { frame, tendonForce };
+        const [frame, torqueNm] = row.split(",").map(Number);
+        let tendonForce;
+        if (USE_LOWER_LEG_MOMENT_ARM) {
+            tendonForce = (torqueNm * lowerLegMomentArm) / momentArm;
+        } else {
+            tendonForce = torqueNm / momentArm;
+        }
+                return { frame, tendonForce };
     });
 
     const frames = data.map(d => d.frame);
@@ -206,7 +223,7 @@ async function plotForceRamp() {
     });
 
     animateDataset(chartElongation, 1, forces);
-    console.log("✅ Tendon force curve plotted (moment arm =", momentArm, ")");
+    console.log("✅ Tendon force curve plotted using both moment arms (lower leg =", lowerLegMomentArm, "m, tendon =", momentArm, "m)");
 }
 
 // === Crear gráfico compartido ===
@@ -361,7 +378,19 @@ async function plotForceElongation() {
 
     const forceData = lines.map(row => {
         const [frame, torqueNm] = row.split(",").map(Number);
-        const tendonForce = torqueNm / momentArm;
+        const lowerLegMomentArmInput = document.getElementById("lower-leg-moment-arm");
+        let lowerLegMomentArm = parseFloat(lowerLegMomentArmInput?.value);
+        if (isNaN(lowerLegMomentArm) || lowerLegMomentArm <= 0) {
+            lowerLegMomentArm = 0.28; // valor por defecto
+            console.log("⚙️ Using default lower leg moment arm = 0.28 m");
+        }
+
+let tendonForce;
+if (USE_LOWER_LEG_MOMENT_ARM) {
+    tendonForce = (torqueNm * lowerLegMomentArm) / momentArm;
+} else {
+    tendonForce = torqueNm / momentArm;
+}
         return { frame, tendonForce };
     });
 
@@ -542,7 +571,19 @@ async function plotForceElongation_TF80() {
     // --- Convertir torque → fuerza lineal
     const forceData = lines.map(row => {
         const [frame, torqueNm] = row.split(",").map(Number);
-        const tendonForce = torqueNm / momentArm;
+        const lowerLegMomentArmInput = document.getElementById("lower-leg-moment-arm");
+        let lowerLegMomentArm = parseFloat(lowerLegMomentArmInput?.value);
+        if (isNaN(lowerLegMomentArm) || lowerLegMomentArm <= 0) {
+            lowerLegMomentArm = 0.28; // valor por defecto
+            console.log("⚙️ Using default lower leg moment arm = 0.28 m");
+        }
+
+let tendonForce;
+if (USE_LOWER_LEG_MOMENT_ARM) {
+    tendonForce = (torqueNm * lowerLegMomentArm) / momentArm;
+} else {
+    tendonForce = torqueNm / momentArm;
+}
         return { frame, tendonForce };
     });
 
@@ -550,9 +591,19 @@ async function plotForceElongation_TF80() {
     const TFmax = Math.max(...forceData.map(f => f.tendonForce));
     const TF80 = 0.8 * TFmax;
 
-    // --- Tomar solo hasta el 80 % del máximo
-    const cutoffIndex = forceData.findIndex(f => f.tendonForce >= TF80);
-    const n = Math.min(cutoffIndex + 1, elongationData.length);
+    // --- Control rápido: graficar hasta el 80 % o el 100 %
+    // cambia esta variable según lo que necesites
+    const USE_FULL_CURVE = true;  // ← False: plot 80% of the curve
+
+    let n;
+    if (USE_FULL_CURVE) {
+        n = Math.min(forceData.length, elongationData.length);
+        console.log("📈 Graficando curva completa (0–100 % TFmax)");
+    } else {
+        const cutoffIndex = forceData.findIndex(f => f.tendonForce >= TF80);
+        n = Math.min(cutoffIndex + 1, elongationData.length);
+        console.log("📈 Graficando curva truncada (0–80 % TFmax)");
+    }
 
     const paired = [];
     for (let i = 0; i < n; i++) {

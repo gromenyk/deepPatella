@@ -20,11 +20,12 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.removeItem("deepPatella_lastRegression");
             localStorage.removeItem("deepPatella_stiffness");
             localStorage.removeItem("deepPatella_stiffness_normalized");
+            localStorage.removeItem("deepPatella_last_video");
 
             console.log("🧹 LocalStorage cleaned: all DeepPatella data removed");
 
             alert("User Interface has been reset: " + data.message);
-            location.reload();
+            window.location.href = "/";
           })
           .catch((err) => alert("Error when resetting: " + err));
       }

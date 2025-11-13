@@ -2,6 +2,8 @@ import os
 import subprocess
 import time
 import shutil
+import numpy as np
+import io
 from scipy import signal
 from scipy import interpolate
 import numpy as np
@@ -47,21 +49,22 @@ def upload_file():
     if file and allowed_file(file.filename):
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         upload_folder = os.path.join(project_root, 'TransUNet', 'datasets', 'videos')
-        print(f"Intentando guardar en: {upload_folder}")
+        os.makedirs(upload_folder, exist_ok=True)
 
-        if not os.path.exists(upload_folder):
-            print(f"Creando carpeta en: {upload_folder}")
-            os.makedirs(upload_folder)
-
-        filename = 'original_video.mp4'
-        filepath = os.path.join(upload_folder, filename)
-        print(f"Ruta completa de carga: {filepath}")
-
+        # Guardamos con nombre fijo interno, pero mantenemos el original
+        saved_filename = 'original_video.mp4'
+        filepath = os.path.join(upload_folder, saved_filename)
         file.save(filepath)
 
-        return render_template('index.html', message=f'Video uploaded successfully! Everything is set to run the inference!')
+        # Pasamos el nombre original al template
+        return render_template(
+            'index.html',
+            message='Video uploaded successfully! Everything is set to run the inference!',
+            filename_original=file.filename
+        )
     else:
         return render_template('index.html', message='File type not allowed')
+
     
 @app.route('/run_inference', methods=['POST'])
 def run_inference():
@@ -252,6 +255,9 @@ def cleanup():
             if os.path.isfile(file):
                 os.remove(file)
 
+        global CLEAN_FRAMES_CACHE
+        CLEAN_FRAMES_CACHE = None
+
         return jsonify({"message": "Reset worked perfectly"}), 200
 
     except Exception as e:
@@ -275,7 +281,7 @@ def process_force():
         df_force = pd.read_excel(ramp_path)
 
         # --- Filter by sync value ---
-        # df_force = df_force[df_force["Sync"] > 3.9]
+        #df_force = df_force[df_force["Sync"] > 3.9]
 
         # --- Read coordinates ---
         if use_kalman:
@@ -395,7 +401,125 @@ def process_force():
     except Exception as e:
         print(f"❌ Error processing force ramp: {e}")
         return jsonify({"error": str(e)}), 500
+@app.route('/update_coords', methods=['POST'])
+def update_coords():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'message': 'No data received'}), 400
 
+        rows = []
+        for frame in data:
+            rows.append([
+                frame['distal']['x'], frame['distal']['y'],
+                frame['proximal']['x'], frame['proximal']['y']
+            ])
+        df = pd.DataFrame(rows, columns=['distal_X', 'distal_y', 'proximal_x', 'proximal_y'])
+
+        data_dir = os.path.join(app.static_folder, 'data')
+        distal_path = os.path.join(data_dir, 'kalman_coords_distal.csv')
+        proximal_path = os.path.join(data_dir, 'kalman_coords_proximal.csv')
+
+        # Crear backup si no existe
+        backup_distal = os.path.join(data_dir, 'kalman_coords_distal_backup.csv')
+        backup_proximal = os.path.join(data_dir, 'kalman_coords_proximal_backup.csv')
+        if not os.path.exists(backup_distal):
+            shutil.copy2(distal_path, backup_distal)
+        if not os.path.exists(backup_proximal):
+            shutil.copy2(proximal_path, backup_proximal)
+
+        # Guardar los nuevos valores sobrescribiendo los archivos Kalman
+        distal = df[['distal_X', 'distal_y']].copy()
+        distal.columns = ['Predicted_Distal_X', 'Predicted_Distal_Y']
+
+        proximal = df[['proximal_x', 'proximal_y']].copy()
+        proximal.columns = ['Predicted_Proximal_X', 'Predicted_Proximal_Y']
+
+        distal.to_csv(distal_path, index=False)
+        proximal.to_csv(proximal_path, index=False)
+
+        print("✅ Kalman coordinates updated successfully.")
+        return jsonify({'message': 'Kalman coordinates updated successfully!'})
+    except Exception as e:
+        print(f"❌ Error updating coords: {e}")
+        return jsonify({'message': f'Error: {str(e)}'}), 500
+
+
+
+# === Serve clean frames directly from memory cache ===
+CLEAN_FRAMES_CACHE = None
+
+@app.route('/clean_frame/<int:index>')
+def serve_clean_frame(index):
+    global CLEAN_FRAMES_CACHE
+
+    try:
+        # 1️⃣ Cargar cache si no está en memoria
+        if CLEAN_FRAMES_CACHE is None:
+            cache_path = os.path.join(
+                os.path.dirname(__file__),
+                '..',
+                'TransUNet',
+                'outputs',
+                '_clean_frames_cache.npz'
+            )
+            if not os.path.exists(cache_path):
+                print("⚠️ Cache file not found.")
+                return Response("Cache not found", status=404)
+
+            data = np.load(cache_path, allow_pickle=True)
+
+            # Algunos npz usan 'arr_0' en lugar de 'frames'
+            if 'frames' in data:
+                CLEAN_FRAMES_CACHE = data['frames']
+            elif 'arr_0' in data:
+                CLEAN_FRAMES_CACHE = data['arr_0']
+            else:
+                return Response("No 'frames' key in cache", status=500)
+
+            print(f"[UI] Loaded {len(CLEAN_FRAMES_CACHE)} clean frames into memory cache")
+
+        # 2️⃣ Validar índice
+        if index < 0 or index >= len(CLEAN_FRAMES_CACHE):
+            return Response("Invalid frame index", status=400)
+
+        # 3️⃣ Obtener los bytes de forma segura
+        frame_data = CLEAN_FRAMES_CACHE[index]
+        if isinstance(frame_data, np.ndarray):
+            try:
+                frame_bytes = frame_data.item()
+            except Exception:
+                frame_bytes = frame_data.tobytes()
+        else:
+            frame_bytes = frame_data
+
+        # 4️⃣ Devolver la imagen
+        return send_file(io.BytesIO(frame_bytes), mimetype='image/png')
+
+    except Exception as e:
+        print(f"❌ Error serving clean frame {index}: {e}")
+        return Response(f"Internal error: {e}", status=500)
+
+@app.route('/reset_coords', methods=['POST'])
+def reset_coords():
+    try:
+        data_dir = os.path.join(app.static_folder, 'data')
+        backup_distal = os.path.join(data_dir, 'kalman_coords_distal_backup.csv')
+        backup_proximal = os.path.join(data_dir, 'kalman_coords_proximal_backup.csv')
+        distal_path = os.path.join(data_dir, 'kalman_coords_distal.csv')
+        proximal_path = os.path.join(data_dir, 'kalman_coords_proximal.csv')
+
+        if not os.path.exists(backup_distal) or not os.path.exists(backup_proximal):
+            return jsonify({'message': 'Backup files not found.'}), 404
+
+        shutil.copy2(backup_distal, distal_path)
+        shutil.copy2(backup_proximal, proximal_path)
+
+        print("✅ Kalman coordinates restored from backup.")
+        return jsonify({'message': 'Coordinates restored to original Kalman values!'})
+    except Exception as e:
+        print(f"❌ Error resetting coords: {e}")
+        return jsonify({'message': f'Error: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
