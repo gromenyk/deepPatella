@@ -236,54 +236,62 @@ window.addEventListener("load", () => {
     }
     checkFrame();
 
-    // === Polling para cargar CSV de coordenadas ===
-        // === Polling para cargar CSV de coordenadas ===
-    const csvUrl = document.body.getAttribute("data-csv-url");
-    let csvLoaded = false; // bandera para que solo cargue una vez
+    // === Polling para cargar coordenadas KALMAN ===
+    const distalUrl = document.body.getAttribute("data-distal-url");
+    const proximalUrl = document.body.getAttribute("data-proximal-url");
 
-    function checkCSV() {
-        if (csvLoaded) return; // si ya cargamos, no volver a correr
+    let kalmanLoaded = false;
 
-        fetch(csvUrl, { cache: "no-store" })
-            .then(response => {
-                if (!response.ok) throw new Error("CSV not found");
-                return response.text();
-            })
-            .then(data => {
-                const rows = data.trim().split("\n");
-                if (rows.length < 2) return;
-                const values = rows[1].split(",");
+    function checkKalman() {
+        if (kalmanLoaded) return;
 
-                // ⚠️ Reordenando las columnas
-                const distalX = parseFloat(values[1]).toFixed(1);   // segunda columna
-                const distalY = parseFloat(values[0]).toFixed(1);   // primera columna
-                const proximalX = parseFloat(values[3]).toFixed(1); // cuarta columna
-                const proximalY = parseFloat(values[2]).toFixed(1); // tercera columna
+        Promise.all([
+            fetch(distalUrl, { cache: "no-store" }).then(r => r.text()),
+            fetch(proximalUrl, { cache: "no-store" }).then(r => r.text())
+        ])
+        .then(([distText, proxText]) => {
 
-                // Actualizar inputs
-                const distalInput = document.getElementById("distal");
-                const proximalInput = document.getElementById("proximal");
-                distalInput.value = `(${distalX}, ${distalY})`;
-                proximalInput.value = `(${proximalX}, ${proximalY})`;
+            const distRows = distText.trim().split("\n");
+            const proxRows = proxText.trim().split("\n");
 
-                // Actualizar points
-                const distalPoint = points.find(p => p.inputId === "distal");
-                if (distalPoint) distalPoint.coords = [parseFloat(distalX), parseFloat(distalY)];
-                const proximalPoint = points.find(p => p.inputId === "proximal");
-                if (proximalPoint) proximalPoint.coords = [parseFloat(proximalX), parseFloat(proximalY)];
+            if (distRows.length < 2 || proxRows.length < 2)
+                throw new Error("Not ready");
 
-                draw();
+            const d = distRows[1].split(",");
+            const p = proxRows[1].split(",");
 
-                // ✅ solo cargar una vez
-                csvLoaded = true;
-                console.log("CSV cargado, polling detenido");
-            })
+            // Últimas dos columnas = predicción Kalman
+            const d_csv_x = parseFloat(d[d.length - 2]);
+            const d_csv_y = parseFloat(d[d.length - 1]);
 
-            .catch(() => {
-                // aún no está disponible, reintentar
-                setTimeout(checkCSV, 3000);
-            });
+            const p_csv_x = parseFloat(p[p.length - 2]);
+            const p_csv_y = parseFloat(p[p.length - 1]);
+
+            // Corrijo el orden XY (porque viene invertido)
+            const distalX = d_csv_y;
+            const distalY = d_csv_x;
+
+            const proximalX = p_csv_y;
+            const proximalY = p_csv_x;
+
+            // Actualizar inputs
+            document.getElementById("distal").value = `(${distalX.toFixed(1)}, ${distalY.toFixed(1)})`;
+            document.getElementById("proximal").value = `(${proximalX.toFixed(1)}, ${proximalY.toFixed(1)})`;
+
+            // Actualizar puntos UI
+            points.find(p => p.inputId === "distal").coords = [distalX, distalY];
+            points.find(p => p.inputId === "proximal").coords = [proximalX, proximalY];
+
+            draw();
+
+            kalmanLoaded = true;
+            console.log("Kalman coords loaded for baseline");
+        })
+        .catch(() => {
+            setTimeout(checkKalman, 3000);
+        });
     }
-    checkCSV();
+
+    checkKalman();
 
 });

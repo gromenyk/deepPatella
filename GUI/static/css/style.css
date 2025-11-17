@@ -22,14 +22,6 @@ p {
     color:#2D373C;
 }
 
-.main {
-    display: flex;
-    flex-direction: row; /* Coloca las columnas una al lado de la otra */
-    justify-content: space-between; /* Asegura que las columnas estén separadas */
-    align-items: flex-start; /* Alinea las columnas al principio (parte superior) */
-    width: 100%; /* Asegura que ocupe todo el ancho */
-}
-
 .banner {
     background-color: #A5D7D2;
     color: black;
@@ -41,19 +33,62 @@ p {
     box-sizing: border-box;
 }
 
-.col_left, .col_right {
-    display: flex;
-    flex-direction: column; 
-    justify-content: flex-start; 
-    align-items: center; 
-    width: 50%; 
-    padding: 20px;
-    font-family: "Helvetica", "Arial", sans-serif;
+.video_processing-title {
+    text-align: center;
+    font-size: 42px;
+    color: #2D373C;
+    margin-top: 40px;
+    margin-bottom: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
 }
 
-.col_right {
-    border-left: black solid 2px; 
+.main {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: stretch; 
+    width: 100%;
+    min-height: calc(100vh - 300px);
+    padding: 20px;
+    gap: 20px;
+    box-sizing: border-box;
 }
+
+.col_left,
+.col_middle,
+.col_right {
+    flex: 1;
+    background-color: #D2EBE9;
+    border-radius: 10px;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.col_left {
+    flex: 1;
+}
+.col_middle {
+    flex: 1;
+}
+.col_right {
+    flex: 1;
+}
+
+.col_left h2,
+.col_middle h2,
+.col_right h2 {
+    text-align: center;
+    font-size: 32px;
+    color: #2D373C;
+    margin-bottom: 20px;
+}
+
 
 /* Menu */
 menu {
@@ -107,6 +142,15 @@ menu li.active a {
     text-align: center;
     width: 70%;
     margin-bottom: 30px;
+}
+
+.upload-filename {
+    color: #2D373C;
+    font-style: italic;
+    font-size: 18px;
+    margin-top: -10px;
+    margin-bottom: 20px;
+    text-align: center;
 }
 
 .custom-file-upload {
@@ -302,6 +346,8 @@ menu li.active a {
 
 /* Visualizations section */
 
+
+
 #waiting-video-message {
     color: #2D373C;
     font-size: 20px;
@@ -323,35 +369,11 @@ menu li.active a {
     height: 20px;
 }
 
-.video-btns {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    gap: 20px;
-}
+/*Corrections section */
 
-#play-btn {
-    background-color: #A5D7D2;
-    color: #46505A;
-    border: solid 1px #46505A;
-    font-size: 20px; 
-    border-radius: 5px;
-    padding: 5px 20px;
-    font-weight: bold;
-    cursor: pointer;
-    width: 50%;
-}
-
-#pause-btn {
-    background-color: #A5D7D2;
-    color: #46505A;
-    border: solid 1px #46505A;
-    font-size: 20px; 
-    border-radius: 5px;
-    padding: 5px 20px;
-    font-weight: bold;
-    cursor: pointer;
-    width: 50%;
+#kalmanFrameSlider {
+    width: 100%;
+    margin-top: 25px;
 }
 
 /* Baseline Calculation page */
@@ -407,6 +429,29 @@ menu li.active a {
 .image-container img {
     max-width: 100%;
     height: auto;
+}
+
+#outlier-warning {
+    display: none;
+    background: #ffdddd;
+    border:2px solid #cc0000;
+    color:#2D373C;
+    padding:10px;
+    margin:10px 0;
+    border-radius:6px;
+    font-weight:bold;
+    text-align:center;
+}
+
+.outlier-link {
+    color: #cc0000;
+    cursor: pointer;
+    text-decoration: underline;
+    font-weight: bold;
+}
+
+.outlier-link:hover {
+    color: #ff6600;
 }
 
 /* Cards */
@@ -845,4 +890,151 @@ menu li.active a {
 
 .plot-section.active {
   display: block;
+}
+
+/* === Botones de las secciones de Visualizations y Coordinate Correction === */
+
+/* Contenedor general */
+.video-btns {
+    display: flex;
+    flex-direction: column; /* apiladas en dos filas */
+    align-items: center;
+    gap: 10px;
+    background-color: #D2EBE9;
+    padding: 10px 20px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+/* Botones */
+.video-btns button {
+    width: 180px; /* igual ancho en ambas columnas */
+    background-color: #A5D7D2;
+    color: #46505A;
+    border: solid 1px #46505A;
+    font-size: 16px;
+    border-radius: 6px;
+    padding: 8px 0;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+/* Hover general */
+.video-btns button:hover {
+    background-color: #46505A;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Estilo especial para el botón Reset */
+#resetCorrections {
+    background-color: #D20537;
+    color: white;
+    border-color: #b5002e;
+}
+#resetCorrections:hover {
+    background-color: #b5002e;
+}
+
+/* === Alinear sliders y botones entre Visualizations y Corrections === */
+.frames-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 620px; /* igual altura total */
+    box-sizing: border-box;
+}
+
+/* Sliders alineados */
+#frameSlider,
+#kalmanFrameSlider {
+    width: 100%;
+    background-color: #A5D7D2;
+    border: solid 1px #2D373C;
+    border-radius: 6px;
+    margin-top: 20px;
+    margin-bottom: 25px;
+    height: 20px;
+}
+
+/* Empuja botones hacia abajo si sobra espacio */
+.col_middle .video-btns,
+.col_right .video-btns {
+    margin-top: auto;
+}
+
+/* === Centrar el video (canvas o imagen) dentro de cada columna === */
+
+/* Asegura que los contenedores de frames sean flexibles y centrados */
+.col_middle .frames-container,
+.col_right .frames-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;     /* centra horizontalmente */
+    justify-content: center; /* centra verticalmente si hay espacio */
+    width: 100%;
+}
+
+/* Centrar el canvas o imagen dentro del contenedor */
+.col_middle canvas,
+.col_right canvas,
+.col_middle img,
+.col_right img {
+    display: block;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: 0;
+    margin-bottom: 0;
+    max-width: 100%;
+    height: auto;
+}
+
+/* Si el contenedor interno usa inline-block (caso típico en tu image-container) */
+.image-container {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center;
+    width: 100%;
+    background: none; /* elimina cualquier fondo que lo desplace */
+}
+
+#saveCorrections {
+    background-color: #2D373C;
+    color: white;
+}
+
+/* === Corrige tamaño del frame inicial en Baseline Calculation === */
+.baseline-right img,
+.baseline-right canvas {
+    width: 512px !important;
+    height: 512px !important;
+    display: block;
+    margin: 0 auto;
+    object-fit: contain;
+}
+
+/* Asegura que el canvas quede perfectamente alineado con la imagen */
+.baseline-right .image-container {
+    position: relative;
+    width: 512px;
+    height: 512px;
+    margin: 0 auto; /* centra todo el bloque */
+}
+
+.baseline-right .image-container img {
+    display: block;
+    width: 512px;
+    height: 512px;
+    margin: 0;
+}
+
+.baseline-right .image-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 512px;
+    height: 512px;
+    pointer-events: none; /* evita interferir con clics */
 }

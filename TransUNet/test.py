@@ -14,6 +14,7 @@ import time
 import csv
 import functools
 import shutil
+import cv2
 from pipeline.video_preprocessing import process_video
 from pipeline.video_input import frame_split
 from pipeline.list_generator import npz_files_list
@@ -215,9 +216,28 @@ try:
     frames = np.load(args.original_images)
     first_frame = frames[0]
 
+    # === Store clean (unpainted) frames in memory for GUI  (for corrections section)===
+    try:
+        CLEAN_FRAMES = []
+        for frame in frames:
+            if frame.ndim == 3 and frame.shape[2] == 3:
+                frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            else:
+                frame_gray = frame
+            frame_gray = (frame_gray - frame_gray.min()) / (frame_gray.max() - frame_gray.min() + 1e-8)
+            frame_gray = (frame_gray * 255).astype(np.uint8)
+            ok, buffer = cv2.imencode('.png', frame_gray)
+            if ok:
+                CLEAN_FRAMES.append(buffer.tobytes())
+
+        np.savez_compressed('../TransUNet/outputs/_clean_frames_cache.npz',
+                            frames=np.array(CLEAN_FRAMES, dtype=object))
+        print(f"[UI] Stored {len(CLEAN_FRAMES)} clean frames in memory cache.")
+    except Exception as e:
+        print(f"[⚠️] Could not store clean frames in memory: {e}")
+
     # Convertir a escala de grises si es RGB/BGR
     if first_frame.ndim == 3 and first_frame.shape[2] == 3:
-        import cv2
         first_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 
     # Normalizar a [0, 255]
@@ -461,5 +481,4 @@ copy_frames_to_static()
 copy_csv_to_static()
 
 print('[Process Completed]')
-
 

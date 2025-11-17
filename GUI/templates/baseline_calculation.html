@@ -8,7 +8,10 @@
     <script src="{{ url_for('static', filename='js/tendonCurve.js') }}"></script>
     <script src="{{ url_for('static', filename='js/baseline.js') }}"></script>
 </head>
-<body data-csv-url="{{ url_for('static', filename='data/insertion_coords.csv') }}">
+<body 
+    data-distal-url="{{ url_for('static', filename='data/kalman_coords_distal.csv') }}"
+    data-proximal-url="{{ url_for('static', filename='data/kalman_coords_proximal.csv') }}"
+>
     <div class="banner">
         <h1>DeepPatella</h1>
         <p>Automatic quantification of patellar tendon stiffness</p>

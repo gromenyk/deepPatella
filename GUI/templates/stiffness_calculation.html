@@ -41,7 +41,11 @@
                         <input type="button" id="upload-force-btn" value="Upload">
                     </div>
                     <div class="processing-panel">
-                        <label for="moment-arm (m)">Moment Arm</label>
+                        <label for="lower-leg-moment-arm">Lower Leg Moment Arm</label>
+                        <input type="number" id="lower-leg-moment-arm" placeholder="Default = 0.28" step="0.01" min="0">
+                    </div>
+                    <div class="processing-panel">
+                        <label for="moment-arm (m)">Patellar Tendon Moment Arm</label>
                         <input type="number" id="moment-arm" placeholder="Default = 0.04" step="0.001" min="0">
                     </div>
                     <div class="processing-panel">
@@ -66,6 +70,7 @@
                             <span id="stiffness-value">–</span>
                             <span class="stiffness-unit">N/mm</span>
                         </div>
+                        <h2>Normalized Stiffness (N):</h2>
                         <div class="stiffness-result">
                             <span id="normalized-stiffness-value">–</span>
                             <span class="stiffness-unit">N</span>
