@@ -1,3 +1,37 @@
+<!--
+    DeepPatella – Tendon Stiffness Calculation Page
+
+    This page performs the final stage of the DeepPatella pipeline:
+    converting model-predicted elongation and force-ramp data into 
+    tendon stiffness measurements.
+
+    Responsibilities:
+      • Load baseline tendon length (mm) from localStorage 
+        (computed in the Baseline module)
+      • Process elongation across frames using Kalman-corrected coordinates
+      • Upload and process the force ramp file (.xlsx → torque → tendon force)
+      • Visualize:
+          – Force + Elongation over time
+          – Hysteresis loop (force vs elongation for the full cycle)
+          – Force–Elongation curve (TF₀–TF₈₀) with polynomial regression
+      • Compute tendon stiffness using the slope between TF₅₀ and TF₈₀
+      • Compute normalized stiffness (N) using tendon baseline length
+      • Provide tab navigation across all plot types
+
+    Dependencies:
+      - Chart.js       → plotting
+      - regression.js  → polynomial fitting for TF₀–TF₈₀
+      - stiffness.js   → data processing, plotting and stiffness computation
+      - reset_ui.js    → shared reset logic
+
+    Notes:
+      - This page assumes that inference and baseline calculations are complete.
+      - All intermediate results (elongation, force, regression model, stiffness)
+        are handled by stiffness.js and stored temporarily in window.* variables.
+      - UI elements (buttons, canvases, placeholders) are wired exclusively through
+        stiffness.js event listeners.
+-->
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -12,10 +46,130 @@
         <p>Automatic quantification of patellar tendon stiffness</p>
     </div>
     <menu>
-        <li><a href="{{ url_for('home') }}">Configurations & Visualizations</a></li>
-        <li><a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a></li>
-        <li><a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a></li>
-    </menu>        
-    <H1>STIFFNESS CALCULATION</H1>
+        <li class="{% if request.endpoint == 'home' %}active{% endif %}">
+            <a href="{{ url_for('home') }}">Video Processing</a>
+        </li>
+
+        <li class="{% if request.endpoint == 'baseline_calculation' %}active{% endif %}">
+            <a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a>
+        </li>
+
+        <li class="{% if request.endpoint == 'stiffness_calculation' %}active{% endif %}">
+            <a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a>
+        </li>
+            <li id="reset-btn">Reset UI</li>
+    </menu>
+
+    <div class="stiffness-calculation">
+        <h1 id="stiffness-title">STIFFNESS CALCULATION</h1>
+        <p id="stiffness-description">In this section you can plot the force ramp and the tendon elongation, and calculate tendon stiffness</p>
+        <div class="stiffness-container">
+            <!-- Left Panel - Data -->
+            <div class="left-column">
+                <section class="data-panel">
+                    <h2>Processing Panel</h2>
+                    <div class="processing-panel">
+                        <label for="baseline-mm">Tendon elongation at rest:</label>
+                        <input type="text" id="baseline-mm" readonly value="-">
+                    </div>
+                    <div class="processing-panel">
+                        <label for="tendon-elongation-processing">Process tendon elongation:</label>
+                        <input type="button" id="tendon-elongation-processing" value="Process Tendon Elongation">
+                    </div>
+                    <div class="processing-panel">
+                        <label for="upload-force-ramp">Upload force ramp file:</label>
+                        <input type="file" id="upload-force-ramp" accept=".xlsx">
+                        <input type="button" id="upload-force-btn" value="Upload">
+                    </div>
+                    <!-- <div class="processing-panel">
+                        <label for="lower-leg-moment-arm">Lower Leg Moment Arm</label>
+                        <input type="number" id="lower-leg-moment-arm" placeholder="Default = 0.28" step="0.01" min="0">
+                    </div> -->
+                    <div class="processing-panel">
+                        <label for="moment-arm (m)">Patellar Tendon Moment Arm</label>
+                        <input type="number" id="moment-arm" placeholder="Default = 0.04" step="0.001" min="0">
+                    </div>
+                    <div class="processing-panel">
+                        <label for="process-force-btn">Process force ramp: </label>
+                        <input type="button" id="process-force-btn" value="Process Force Ramp">
+                    </div>
+                    <div class="processing-panel">
+                        <label for="raw-force-strain">Generate Hysteresis Loop: </label>
+                        <input type="button" id="generate-force-strain-raw" value="Generate Hysteresis Loop">
+                    </div>
+                    <div class="processing-panel">
+                        <label for="generate-force-strain-tf0-tf80">Generate Force-Elongation Curve (TF<sub>0</sub> - TF<sub>80</sub>): </label>
+                        <input type="button" id="generate-force-strain-tf0-tf80" value="Generate Force-Elongation Curve">
+                    </div>
+                </section>
+                <section>
+                    <div class="processing-panel stiffness-box">
+                        <h3>Tendon Stiffness</h3>
+                        <input type="button" id="calculate-stiffness-btn" value="Calculate Tendon Stiffness">
+                        <h2>Tendon Stiffness (N/mm): </h2>
+                        <div class="stiffness-result">
+                            <span id="stiffness-value">–</span>
+                            <span class="stiffness-unit">N/mm</span>
+                        </div>
+                        <h2>Normalized Stiffness (N):</h2>
+                        <div class="stiffness-result">
+                            <span id="normalized-stiffness-value">–</span>
+                            <span class="stiffness-unit">N</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            <!-- Right panel - Plots -->
+            <section class="plot-panel">
+                <h2>Force ramp and tendon elongation plots</h2>
+                <!-- === Tabs === -->
+                <div class="chart-tabs">
+                    <button class="tab-btn active" data-target="plot-force-elongation">Force + Elongation</button>
+                    <button class="tab-btn" data-target="plot-hysteresis">Hysteresis Loop</button>
+                    <button class="tab-btn" data-target="plot-force-elongation-tf0080">Force–Elongation (TF₀–TF₈₀)</button>
+                </div>
+                <!-- === Plot sections (each tab has its own canvas) === -->
+                <div id="plot-force-elongation" class="plot-section active">
+                    <div class="chart-container">
+                        <div class="chart-placeholder">
+                            Force ramp and tendon elongation view<br>
+                            This plot will display the force ramp and the tendon elongation across frames. <br>
+                            Please process tendon elongation or force ramp to visualize results.
+                        </div>
+                        <canvas id="chart-elongation"></canvas>
+                    </div>
+                </div>
+
+                <div id="plot-hysteresis" class="plot-section">
+                    <div class="chart-container">
+                        <div class="chart-placeholder">
+                            Hysteresis loop view<br>
+                            This plot will display tendon force vs elongation (mm), of the complete cycle of the force ramp, including going back to rest. <br>
+                            Please click on the 'Generate Hysteresis Loop' button to generate the plot.
+                        </div>
+                        <canvas id="chart-hysteresis"></canvas>
+                    </div>
+                </div>
+
+                <div id="plot-force-elongation-tf0080" class="plot-section">
+                    <div class="chart-container">
+                        <div class="chart-placeholder">
+                            Force-Elongation (TF₀-TF₈₀) view and tendon stiffness calculation.<br>
+                            <span style="font-size: 0.9em; color: #aaa;">
+                            This plot displays tendon force vs elongation (mm) between 0 % and 80 % of TF<sub>max</sub>, 
+                            with a fitted second-order polynomial and the slope between 50 % and 80 % of TF<sub>max</sub> (tendon stiffness).<br>
+                            Please click on the “Generate Force-Elongation (TF₀-TF₈₀)” button to generate the plot and calculate stiffness.
+                            </span>
+                        </div>
+                        <canvas id="chart-force-elongation-tf0080"></canvas>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/regression@2.0.1/dist/regression.min.js"></script>
+    <script src="{{ url_for('static', filename='js/stiffness.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/reset_ui.js') }}"></script>
 </body>
 </html>

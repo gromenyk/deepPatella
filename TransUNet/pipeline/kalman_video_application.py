@@ -1,3 +1,21 @@
+"""
+kalman_video_applicaton.py
+
+This module takes the Kalman-corrected distal and proximal coordinates
+(from the two CSV files) and overlays them onto the original ultrasound
+frames stored in a .npy file. Each frame is reconstructed with both
+insertions plotted as colored circles and stored as individual PNGs.
+
+The module performs:
+    - Loading of original 512×512 frames from a NumPy array
+    - Overlay of distal and proximal Kalman-filtered coordinates
+    - Export of frame-by-frame PNG images for later video reconstruction
+
+Pipeline step:
+    kalman_coords_distal.csv + kalman_coords_proximal.csv + original_images.npy
+        → kalman_predictions/frame_XXXX_with_coordinates.png
+"""
+
 import os
 import numpy as np
 import pandas as pd
@@ -34,7 +52,7 @@ def process_video_with_predictions(CSV_PATH_DISTAL, CSV_PATH_PROXIMAL, NPY_PATH,
 
     for i, row in df_proximal.iterrows():
         if i >= len(original_images):
-            print(f"Advertencia: No hay imagen correspondiente para el frame {i}.")
+            print(f"Warning: no corresponding image for frame {i}.")
             continue
 
         original_image = original_images[i]
@@ -53,15 +71,13 @@ def process_video_with_predictions(CSV_PATH_DISTAL, CSV_PATH_PROXIMAL, NPY_PATH,
         output_path = os.path.join(OUTPUT_FOLDER, f'frame_{i:04d}_with_coordinates.png')
         cv2.imwrite(output_path, original_image)
 
-    print("Proceso completado. Imágenes con nuevas coordenadas guardadas en:", OUTPUT_FOLDER)
+    print("Process completed. Images with new coordinates saved in:", OUTPUT_FOLDER)
 
 
 CSV_PATH_DISTAL = '../outputs/kalman_coords_distal.csv'  
 CSV_PATH_PROXIMAL = '../outputs/kalman_coords_proximal.csv'
 NPY_PATH = '../../data/Synapse/original_images.npy'  
 OUTPUT_FOLDER = '../outputs/kalman_predictions'  
-
-#process_video_with_predictions(CSV_PATH_DISTAL='../outputs/kalman_coords_distal.csv', CSV_PATH_PROXIMAL='../outputs/kalman_coords_proximal.csv', NPY_PATH='../../data/Synapse/original_images.npy', OUTPUT_FOLDER='../outputs/kalman_predictions')
 
 
 

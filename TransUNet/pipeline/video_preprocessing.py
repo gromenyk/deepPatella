@@ -1,3 +1,30 @@
+"""
+video_preprocessing.py
+
+This module performs the first step of the DeepPatella pipeline: extracting the
+usable ultrasound region from the raw input video and producing a clean,
+standardized 508×632 version of the sequence.
+
+What this step does:
+    1. Detects the ultrasound window by scanning for dark (almost black) borders
+       on the left, right, and top of each frame.
+    2. Crops the frame dynamically based on those detected boundaries.
+    3. Rescales the cropped region while preserving aspect ratio.
+    4. Pads the result to a fixed final size of 508×632 (same dimensions used in
+       the full coordinate-transform pipeline).
+    5. Produces a new preprocessed MP4 video containing all processed frames.
+
+Pipeline step:
+    original_video.mp4 → preprocessed_video.mp4 (+ processed_frames in memory)
+
+Notes:
+    - Crop detection relies on intensity thresholds to locate ultrasound borders.
+    - The bottom 20px are always removed to avoid artifacts.
+    - This step ensures that all following components (frame_split, TransUNet
+      inference, coordinate scaling, Kalman correction) operate on spatially
+      consistent frames.
+"""
+
 import cv2
 import numpy as np
 import json

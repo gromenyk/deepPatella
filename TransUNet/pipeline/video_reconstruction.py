@@ -1,3 +1,27 @@
+"""
+video_reconstruction.py
+
+This module reconstructs the intermediate video generated from raw TransUNet
+predictions (before applying the Kalman filter). Each frame in the folder
+`placed_center_of_mass/` contains the original ultrasound image with the
+insertion centroids derived directly from the model’s predicted heatmaps.
+
+What this step does:
+    1. Reads all PNG frames from `placed_center_of_mass/`.
+    2. Sorts them by filename to preserve temporal order.
+    3. Creates an MP4 video using a fixed frame rate (default: 50 FPS).
+    4. Uses the resolution of the first frame for the output.
+
+Pipeline step:
+    placed_center_of_mass/*.png → reconstructed_video.mp4
+
+Notes:
+    - This video represents the “raw” model predictions without any Kalman
+      smoothing.
+    - Useful for debugging and visually comparing raw vs. corrected trajectories.
+    - Assumes all frames have matching dimensions.
+"""
+
 import cv2
 import os
 

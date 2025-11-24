@@ -83,9 +83,6 @@ def test_single_volume(image, label, net, patch_size=[256, 256], test_save_path=
         with torch.no_grad():
             out = out = torch.sigmoid(outputs).squeeze(0).cpu().detach().numpy()
             prediction = out.cpu().detach().numpy()
-    #metric_list = []
-    #for i in range(1, classes):
-    #    metric_list.append(calculate_metric_percase(prediction == i, label == i))
 
     if test_save_path is not None:
         img_itk = sitk.GetImageFromArray(image.astype(np.float32))

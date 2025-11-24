@@ -1,3 +1,28 @@
+"""
+video_input.py
+
+This module reads the preprocessed (cropped + resized) ultrasound video and
+splits it into individual frames. Each frame is padded to 512x512, saved as
+a normalized NPZ file containing:
+
+    - image: z-score normalized frame (512x512)
+    - label: empty mask (required by TransUNet I/O format)
+    - mean/std: normalization statistics for eventual de-normalization
+
+Additionally:
+    - The unmodified padded frames (before normalization) are saved to
+      original_images.npy so later pipeline steps (centroid overlay,
+      Kalman reconstruction) can operate on clean frames.
+
+Pipeline step:
+    preprocessed_video.mp4 → test_vol_h5/frame_XXXX.npz + original_images.npy
+
+Notes:
+    - Resizing is proportional, preserving aspect ratio
+    - Padding ensures the final video space is exactly 512x512
+    - No segmentation labels are used during inference, so masks = zeros
+"""
+
 import cv2
 import os
 import numpy as np
@@ -48,12 +73,12 @@ def frame_split(video_path, output_folder, original_images_file):
         # Save original images
         original_images.append(padded_frame)
 
-        #Image normalization (zscore)
+        # Image normalization (zscore)
         mean = np.mean(padded_frame)
         std = np.std(padded_frame)
         normalized_image = (padded_frame - mean) / std
 
-        #Create normalized empty mask
+        # Create normalized empty mask
         empty_mask = np.zeros((512,512), dtype=np.uint8)
 
         npz_filename = os.path.join(output_folder, f'frame_{frame_count:04d}.npz')

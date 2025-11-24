@@ -1,3 +1,30 @@
+"""
+video_reconstruction_kalman_pred.py
+
+This module reconstructs the final output video of the DeepPatella pipeline,
+using the frames that contain the *Kalman-filtered* insertion coordinates.
+Each frame in `kalman_predictions/` contains the original ultrasound image plus
+the corrected distal and proximal markers. This script stitches those frames
+back into a synchronized MP4 sequence.
+
+What this step does:
+    1. Reads all PNG frames from the Kalman-corrected folder
+       (`kalman_predictions/`).
+    2. Retrieves the original FPS from the input ultrasound video.
+    3. Creates a new MP4 video using the frames in sorted order.
+    4. Ensures resolution consistency: frame size is taken from the first image.
+
+Pipeline step:
+    kalman_predictions/*.png → kalman_reconstructed_video.mp4
+
+Notes:
+    - The FPS is inherited from the original ultrasound video to keep timing
+      accurate for downstream biomechanical analyses.
+    - Frames must already contain the drawn distal/proximal corrected
+      coordinates (produced by `process_video_with_predictions.py`).
+    - The script expects filenames formatted consistently (e.g., frame_0000.png).
+"""
+
 import cv2
 import os
 
@@ -39,5 +66,3 @@ def reconstruct_kalman_video(frames_folder, output_video_file, original_video_pa
     video_writer.release()
 
     print(f'Reconstructed video saved in {output_video_file}')
-
-#reconstruct_kalman_video(frames_folder, output_video_file)

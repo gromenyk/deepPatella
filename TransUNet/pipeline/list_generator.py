@@ -1,3 +1,24 @@
+"""
+list_generator.py
+
+This module scans a folder containing .npz volumes (one per frame) and
+produces a plain-text file listing the base names of all NPZ files.
+This text file is required by the TransUNet inference loader to iterate
+through the test dataset in the correct order.
+
+The module performs:
+    - Directory scan for *.npz files
+    - Extraction of file base names (no extension)
+    - Saving them into test_vol.txt (one filename per line)
+
+Pipeline step:
+    npz_folder/*.npz → test_vol.txt
+
+Typical use:
+    Called automatically by the main DeepPatella pipeline after frame
+    extraction and NPZ generation.
+"""
+
 import os
 import argparse
 

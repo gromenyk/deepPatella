@@ -1,3 +1,36 @@
+"""
+vit_seg_configs.py
+
+Configuration factory for the Vision Transformer (ViT) variants used in
+DeepPatella’s segmentation model.
+
+This module defines multiple configuration builders for different ViT and
+ResNet-ViT hybrid architectures, all returned as `ml_collections.ConfigDict`
+objects compatible with the TransUNet implementation.
+
+Provided configurations:
+    - ViT-B/16        (get_b16_config)
+    - ViT-B/32        (get_b32_config)
+    - ViT-L/16        (get_l16_config)
+    - ViT-L/32        (get_l32_config)
+    - ViT-H/14        (get_h14_config)
+    - ResNet50-ViT-B/16 hybrid (get_r50_b16_config)
+    - ResNet50-ViT-L/16 hybrid (get_r50_l16_config)
+    - Minimal testing config (get_testing)
+
+Each configuration includes:
+    - Patch size and grid
+    - Transformer depth, heads, MLP width
+    - Decoder channels for segmentation
+    - Number of skip connections
+    - Activation type and classifier head
+    - Path to pretrained ImageNet-21k weights
+
+This file is required by the TransUNet model loader in the inference
+pipeline and by the optional training pipeline.
+"""
+
+
 import ml_collections
 
 def get_b16_config():

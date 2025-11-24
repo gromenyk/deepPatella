@@ -1,3 +1,20 @@
+"""
+kalman_proximal.py
+
+This module applies a Kalman filter to the proximal insertion coordinates obtained
+from TransUNet predictions. The filter predicts positions for every frame, but
+only updates the internal state when the instantaneous acceleration exceeds a
+defined threshold. When the threshold is not exceeded, the original coordinates
+are preserved to avoid unnecessary corrections and keep the trajectory stable.
+
+The module generates:
+    - A CSV file with Kalman-corrected proximal coordinates
+    - A PNG plot comparing raw vs. filtered X/Y positions over time
+
+Pipeline step:
+    accelerations.csv → kalman_coords_proximal.csv + kalman_plot_proximal.png
+"""
+
 from filterpy.kalman import KalmanFilter
 import pandas as pd
 import numpy as np
