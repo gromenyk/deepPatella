@@ -1,10 +1,31 @@
 // tendonCurve.js
+//
+// Catmull–Rom spline interpolation and curve utilities for DeepPatella.
+//
+// This script provides smoothing, curve-length estimation, and drawing helpers
+// used to visualize insertion trajectories and tendon paths in the UI.
+// It is independent from the stiffness module and focuses purely on geometry.
+//
+// Responsibilities:
+//
+//   1. Generate smooth interpolated curves from discrete points using
+//      Catmull–Rom splines (for visualizing tendon insertion trajectories)
+//   2. Compute polyline length from a list of 2D points (for distance metrics)
+//   3. Draw curves onto a canvas context for debugging or visualization
+//
+// Notes:
+//
+//   - All functions expect points in the form [[x, y], [x, y], ...]
+//   - The spline interpolation works with any number of points ≥ 2
+//   - The smoothing factor depends on the number of segments
+//   - Returned curves can be used as-is or further processed downstream
+
 
 /**
- * Interpolación Catmull-Rom para suavizar curva
- * @param {Array} points - lista de puntos [[x,y], [x,y], ...]
- * @param {number} segments - número de subdivisiones entre cada par
- * @returns {Array} lista de puntos interpolados
+ * Catmull-Rom interpolation for a smoother curve
+ * @param {Array} points - List of points [[x,y], [x,y], ...]
+ * @param {number} segments - Number of subdivisions between each pair
+ * @returns {Array} List of interpolated points
  */
 window.catmullRomSpline = function(points, segments = 100) {
     if (points.length < 2) return points;
@@ -41,9 +62,9 @@ window.catmullRomSpline = function(points, segments = 100) {
 };
 
 /**
- * Calcular la longitud de la curva
- * @param {Array} points - lista de puntos [[x,y], ...]
- * @returns {number} longitud total
+ * Calculate curve length
+ * @param {Array} points - List of points [[x,y], ...]
+ * @returns {number} Total length
  */
 window.curveLength = function(points) {
     let length = 0;
@@ -56,9 +77,9 @@ window.curveLength = function(points) {
 };
 
 /**
- * Dibujar la curva en el canvas
- * @param {CanvasRenderingContext2D} ctx - contexto del canvas
- * @param {Array} curve - puntos de la curva
+ * Draw curve on canvas
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {Array} curve - Points of the curve
  */
 window.drawCurve = function(ctx, curve) {
     if (curve.length < 2) return;
@@ -67,7 +88,7 @@ window.drawCurve = function(ctx, curve) {
     for (let i = 1; i < curve.length; i++) {
         ctx.lineTo(curve[i][0], curve[i][1]);
     }
-    ctx.strokeStyle = "yellow";  // color visible sobre escala de grises
+    ctx.strokeStyle = "yellow";  
     ctx.lineWidth = 2;
     ctx.stroke();
 };

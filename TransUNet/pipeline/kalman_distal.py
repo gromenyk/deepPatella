@@ -1,3 +1,21 @@
+"""
+kalman_distal.py
+
+This module applies a Kalman filter to the distal insertion coordinates obtained
+from TransUNet predictions. The filter predicts positions for every frame, but
+only updates the internal state when the frame-to-frame acceleration exceeds a
+defined threshold. When the acceleration is below the threshold, the original
+coordinates are preserved, stabilizing the trajectory.
+
+The module generates:
+    - A CSV file with Kalman-corrected distal coordinates
+    - A PNG plot comparing raw vs. filtered X/Y positions over frames
+
+Pipeline step:
+    accelerations.csv → kalman_coords_distal.csv + kalman_plot_distal.png
+"""
+
+
 from filterpy.kalman import KalmanFilter
 import pandas as pd
 import numpy as np

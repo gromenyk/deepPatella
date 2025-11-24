@@ -1,8 +1,33 @@
-import math
+"""
+resnet_v2.py
 
+Implementation of the ResNet-V2 backbone used inside the TransUNet
+architecture for DeepPatella.
+
+This module provides:
+    - Normalized convolution layers (StdConv2d)
+    - Pre-activation bottleneck blocks (PreActBottleneck)
+    - A ResNet-V2 encoder (ResNetV2) whose multi-scale features feed
+      the decoder of the ViT-UNet hybrid model
+    - Utility for loading pretrained ImageNet-21k checkpoints
+      exported in NumPy format (`np2th`)
+
+Origin:
+    This implementation is adapted from the original TransUNet repository
+    (Chen et al., MICCAI 2021). It is required only if a ResNet+ViT hybrid
+    encoder is selected (e.g., R50-ViT-B/16).
+
+Used in:
+    - Model initialization inside `vit_seg_modeling.py`
+    - Optional training pipeline (train.py)
+
+It is NOT used during post-processing or inference.
+
+"""
+
+import math
 from os.path import join as pjoin
 from collections import OrderedDict
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

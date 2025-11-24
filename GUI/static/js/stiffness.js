@@ -1,10 +1,46 @@
+// stiffness.js
+//
+// Tendon force, elongation and stiffness computation module for DeepPatella.
+//
+// This script powers all processing and visualization tasks inside the
+// “Tendon Stiffness Calculation” page. It connects backend outputs 
+// (Kalman-corrected coordinates and force ramp file) with interactive plots
+// (elongation, force, hysteresis, and TF0–TF80 force–elongation curve).
+//
+// Responsibilities:
+//
+//   1. Load baseline tendon length from localStorage (computed in previous module)
+//   2. Load Kalman-filtered insertion coordinates and compute tendon elongation (mm)
+//   3. Load and process the force ramp (torque → tendon force using moment arm)
+//   4. Plot:
+//        • elongation across frames
+//        • tendon force across frames
+//        • hysteresis loop (force vs elongation)
+//        • force–elongation curve up to TF80%
+//   5. Fit a second-order polynomial (regression.js) to the TF0–TF80 curve
+//   6. Compute tendon stiffness using the slope between TF50% and TF80%
+//   7. Compute normalized stiffness (stiffness × baseline length)
+//   8. Provide tab-based navigation between all plot views
+//
+// Notes:
+//
+//   - Elongation and force must have matching frame counts; alignment is handled
+//     automatically when pairing datasets.
+//   - Conversion factor (px → mm) is stored in localStorage from the baseline module.
+//   - Baseline tendon length (rest length) is required for normalized stiffness.
+//   - All plots use Chart.js and update incrementally when new data arrives.
+//   - TF50 and TF80 are computed dynamically from the processed force ramp.
+//   - The module stores intermediate regression results on window.* for reuse.
+//
+
+
 let chartElongation = null;
 let chartHysteresis = null;
 let chartTF80 = null;
 
-const USE_LOWER_LEG_MOMENT_ARM = true; // Change to false to not use the lower leg moment arm in stiffness calculation (debugging)
+const USE_LOWER_LEG_MOMENT_ARM = false; // Change to false to not use the lower leg moment arm in stiffness calculation (debugging)
 
-// === Al cargar la página: mostrar baseline guardado ===
+// Show saved baseline when loading the page
 window.addEventListener("load", () => {
     const baselineValue = localStorage.getItem("deepPatella_baseline_mm");
     const baselineInput = document.getElementById("baseline-mm");
@@ -16,7 +52,7 @@ window.addEventListener("load", () => {
         console.warn("⚠️ No baseline value found. Please calculate it first in the Baseline module.");
     }
 
-    // Botón: procesar elongación
+    // Elongation processing button
     const processElongationBtn = document.getElementById("tendon-elongation-processing");
     processElongationBtn.addEventListener("click", async () => {
         try {
@@ -28,7 +64,7 @@ window.addEventListener("load", () => {
         }
     });
 
-    // Botón: procesar rampa de fuerza
+    // Force ramp processing button
     const processForceBtn = document.getElementById("process-force-btn");
     if (processForceBtn) {
         processForceBtn.addEventListener("click", async () => {
@@ -37,7 +73,7 @@ window.addEventListener("load", () => {
                 const result = await response.json();
                 console.log("✅ Force ramp processed:", result);
 
-                await plotForceRamp(); // dibuja curva azul
+                await plotForceRamp(); 
             } catch (error) {
                 console.error("❌ Error processing force ramp:", error);
                 alert("Error processing force ramp. Check console for details.");
@@ -45,7 +81,7 @@ window.addEventListener("load", () => {
         });
     }
 
-    // === Botón: subir archivo de rampa de fuerza (.xlsx) ===
+    // Upload force ramp button (.xlsx)
     const uploadForceBtn = document.getElementById("upload-force-btn");
     const uploadForceInput = document.getElementById("upload-force-ramp");
 
@@ -79,7 +115,7 @@ window.addEventListener("load", () => {
     }
 });
 
-// === Leer coordenadas Kalman y calcular elongación (en mm) ===
+// Read Kalman coords and calculate elongation (in mm)
 async function loadAndProcessCSV() {
     const [distalResp, proximalResp] = await Promise.all([
         fetch("/static/data/kalman_coords_distal.csv").then(r => r.text()),
@@ -102,11 +138,10 @@ async function loadAndProcessCSV() {
         return { frame: i + 1, elongation_mm };
     });
 
-    console.log("✅ Ejemplo de fila procesada (Kalman):", data[0]);
     return data;
 }
 
-// === Calcular longitud del tendón y elongación relativa (usando Kalman) ===
+// Tendon length calculation and relative elongation (using Kalman coords)
 async function computeTendonElongation() {
     const [distalResp, proximalResp] = await Promise.all([
         fetch("/static/data/kalman_coords_distal.csv").then(r => r.text()),
@@ -133,13 +168,12 @@ async function computeTendonElongation() {
         return { frame: i + 1, length_mm, deltaL };
     });
 
-    console.log("✅ Ejemplo elongationData (Kalman):", elongationData[0]);
     return elongationData;
 }
 
 
 
-// === Graficar SOLO la elongación ===
+// Plot only elongation
 function plotElongation(data) {
     const placeholder = document.querySelector("#plot-force-elongation .chart-placeholder");
     if (placeholder) placeholder.style.display = "none";
@@ -166,7 +200,7 @@ function plotElongation(data) {
     console.log("✅ Elongation curve plotted");
 }
 
-// === Graficar SOLO la rampa de fuerza ===
+// Plot only force ramp
 async function plotForceRamp() {
     const placeholder = document.querySelector("#plot-force-elongation .chart-placeholder");
     if (placeholder) placeholder.style.display = "none";
@@ -176,7 +210,7 @@ async function plotForceRamp() {
     const rows = text.trim().split("\n");
     rows.shift();
 
-    // Leer Patellar Tendon Moment Arm
+    // Read patellar tendon moment arm
     const momentArmInput = document.getElementById("moment-arm");
     let momentArm = parseFloat(momentArmInput?.value);
     if (isNaN(momentArm) || momentArm <= 0) {
@@ -184,7 +218,7 @@ async function plotForceRamp() {
         console.log("⚙️ Using default patellar tendon moment arm = 0.04 m");
     }
 
-    // Leer Lower Leg Moment Arm
+    // Read lower leg moment arm
     const lowerLegMomentArmInput = document.getElementById("lower-leg-moment-arm");
     let lowerLegMomentArm = parseFloat(lowerLegMomentArmInput?.value);
     if (isNaN(lowerLegMomentArm) || lowerLegMomentArm <= 0) {
@@ -192,7 +226,7 @@ async function plotForceRamp() {
         console.log("⚙️ Using default lower leg moment arm = 0.28 m");
     }
 
-    // Calcular fuerza en el tendón: (Torque × moment arm pierna) / moment arm tendón
+    // Calculate force in tendon (torque x lower leg moment arm / tendon moment arm)
     const data = rows.map(row => {
         const [frame, torqueNm] = row.split(",").map(Number);
         let tendonForce;
@@ -226,7 +260,7 @@ async function plotForceRamp() {
     console.log("✅ Tendon force curve plotted using both moment arms (lower leg =", lowerLegMomentArm, "m, tendon =", momentArm, "m)");
 }
 
-// === Crear gráfico compartido ===
+// Create shared plot
 function createGlobalChart(ctx, frames) {
     return new Chart(ctx, {
         type: "line",
@@ -260,13 +294,13 @@ function createGlobalChart(ctx, frames) {
     });
 }
 
-// === Animar dataset en ~3 segundos ===
+// Dataset animation in ~3 seconds
 function animateDataset(chart, datasetIndex, values) {
     chart.data.datasets[datasetIndex].data = values;
     chart.update();
 }
 
-// === TAB MANAGEMENT ===
+// Tab management
 const tabButtons = document.querySelectorAll(".tab-btn");
 const plotSections = document.querySelectorAll(".plot-section");
 let activeTab = "plot-force-elongation";
@@ -287,12 +321,12 @@ tabButtons.forEach(btn => {
     });
 });
 
-// === Botón: generar curva Force–Strain (desde cualquier pestaña) ===
+// Generate Force-Strain curve button (from any tab)
 const generateForceStrainBtn = document.getElementById("generate-force-strain-raw");
 if (generateForceStrainBtn) {
     generateForceStrainBtn.addEventListener("click", async () => {
         try {
-            // Activar pestaña Force–Strain (raw)
+            // Activate Force-Strain tab
             const rawTab = document.querySelector('[data-target="plot-hysteresis"]');
             if (rawTab) rawTab.click();
 
@@ -304,7 +338,7 @@ if (generateForceStrainBtn) {
     });
 }
 
-// === Plot only elongation (Debugging) (ΔL en mm) ===
+// Plot only elongation (Debugging) (ΔL in mm) 
 async function plotElongationOnly() {
     const placeholder = document.querySelector("#plot-hysteresis .chart-placeholder");
     if (placeholder) placeholder.style.display = "none";
@@ -354,10 +388,9 @@ async function plotElongationOnly() {
         chartHysteresis.update();
     }
 
-    console.log("✅ Elongation-only curve plotted");
 }
 
-// === Graficar curva Force–Elongation (ΔL vs Force) ===
+// Plot Force-Elongation curve
 async function plotForceElongation() {
     const placeholder = document.querySelector("#plot-hysteresis .chart-placeholder");
     if (placeholder) placeholder.style.display = "none";
@@ -381,7 +414,7 @@ async function plotForceElongation() {
         const lowerLegMomentArmInput = document.getElementById("lower-leg-moment-arm");
         let lowerLegMomentArm = parseFloat(lowerLegMomentArmInput?.value);
         if (isNaN(lowerLegMomentArm) || lowerLegMomentArm <= 0) {
-            lowerLegMomentArm = 0.28; // valor por defecto
+            lowerLegMomentArm = 0.28; 
             console.log("⚙️ Using default lower leg moment arm = 0.28 m");
         }
 
@@ -452,10 +485,10 @@ if (USE_LOWER_LEG_MOMENT_ARM) {
 }
 
 
-// === GENERATE FORCE–STRAIN CURVE (TF50–TF80) ===
+// Generate Force-Strain curve (TF50-TF80)
 document.getElementById("generate-force-strain-tf0-tf80").addEventListener("click", function () {
 
-    // --- Activar pestaña Force–Strain Normalized ---
+    // Activate normalized Force/Strain curve 
     const targetTab = document.querySelector("[data-target='plot-force-elongation-tf0080']");
     const targetSection = document.getElementById("plot-force-elongation-tf0080");
 
@@ -465,7 +498,7 @@ document.getElementById("generate-force-strain-tf0-tf80").addEventListener("clic
     targetTab.classList.add("active");
     targetSection.classList.add("active");
 
-    // Obtener valores del baseline (longitud en reposo del tendón)
+    // Obtain baseline values (tendon length at rest)
     const baselineInput = document.getElementById("baseline-mm");
     const tendonRestLength = parseFloat(baselineInput.value);
     if (isNaN(tendonRestLength) || tendonRestLength <= 0) {
@@ -473,17 +506,17 @@ document.getElementById("generate-force-strain-tf0-tf80").addEventListener("clic
         return;
     }
 
-    // Asegurar que fuerza y elongación tengan la misma longitud
+    // Make sure elongation and force have the same length
     const n = Math.min(window.forceData.length, window.elongationData.length);
     const force = window.forceData.slice(0, n);
     const elongation = window.elongationData.slice(0, n);
 
-    // Calcular TFmax y determinar rango 50–80 %
+    // Calculate TFmax and determine range 50-80%
     const TFmax = Math.max(...force);
     const TF50 = 0.5 * TFmax;
     const TF80 = 0.8 * TFmax;
 
-    // Filtrar puntos dentro del rango 50–80 % de TFmax
+    // Filter points in range 50-80% of TFmax
     const filteredPoints = force
         .map((f, i) => ({ force: f, elong: elongation[i] }))
         .filter(p => p.force >= TF50 && p.force <= TF80);
@@ -493,16 +526,16 @@ document.getElementById("generate-force-strain-tf0-tf80").addEventListener("clic
         return;
     }
 
-    // Calcular strain normalizado (%)
+    // Calculate normalized strain (%)
     const forceFiltered = filteredPoints.map(p => p.force);
     const strainFiltered = filteredPoints.map(p => ((p.elong - elongation[0]) / tendonRestLength) * 100);
 
-    // Limpiar gráfico anterior si existe
+    // Clean previous plot if exists
     if (window.chartForceStrainNorm) {
         window.chartForceStrainNorm.destroy();
     }
 
-    // === Crear gráfico con Chart.js ===
+    // Create plot with chart.js
     const ctx = document.getElementById("chart-force-strain-normalized").getContext("2d");
     window.chartForceStrainNorm = new Chart(ctx, {
         type: "scatter",
@@ -544,10 +577,9 @@ document.getElementById("generate-force-strain-tf0-tf80").addEventListener("clic
         }
     });
 
-    console.log("✅ Force–Strain (TF50–TF80) plot generated.");
 });
 
-// === Graficar curva Force–Elongation hasta 80 % TFmax ===
+// === Graficar curva Force–Elongation hasta 80 % TFmax === Plot Force-Elongation curve until 80% of TFmax
 async function plotForceElongation_TF80() {
     const placeholder = document.querySelector("#plot-force-elongation-tf0080 .chart-placeholder");
     if (placeholder) placeholder.style.display = "none";
@@ -555,26 +587,26 @@ async function plotForceElongation_TF80() {
     const canvas = document.getElementById("chart-force-elongation-tf0080");
     const ctx = canvas.getContext("2d");
 
-    // === Cargar fuerza y elongación ===
+    // Load force and elongation
     const [forceResp, elongationData] = await Promise.all([
         fetch("/static/data/force_ramp_processed.csv").then(r => r.text()),
         computeTendonElongation()
     ]);
 
     const lines = forceResp.trim().split("\n");
-    lines.shift(); // eliminar encabezado
+    lines.shift(); 
 
     const momentArmInput = document.getElementById("moment-arm");
     let momentArm = parseFloat(momentArmInput?.value);
     if (isNaN(momentArm) || momentArm <= 0) momentArm = 0.04;
 
-    // --- Convertir torque → fuerza lineal
+    // Convert torque to linear force
     const forceData = lines.map(row => {
         const [frame, torqueNm] = row.split(",").map(Number);
         const lowerLegMomentArmInput = document.getElementById("lower-leg-moment-arm");
         let lowerLegMomentArm = parseFloat(lowerLegMomentArmInput?.value);
         if (isNaN(lowerLegMomentArm) || lowerLegMomentArm <= 0) {
-            lowerLegMomentArm = 0.28; // valor por defecto
+            lowerLegMomentArm = 0.28; 
             console.log("⚙️ Using default lower leg moment arm = 0.28 m");
         }
 
@@ -587,22 +619,21 @@ if (USE_LOWER_LEG_MOMENT_ARM) {
         return { frame, tendonForce };
     });
 
-    // --- Calcular TFmax y límite 80 %
+    // Calculate TFmax and 80% limit
     const TFmax = Math.max(...forceData.map(f => f.tendonForce));
     const TF80 = 0.8 * TFmax;
 
-    // --- Control rápido: graficar hasta el 80 % o el 100 %
-    // cambia esta variable según lo que necesites
+    // Quick control: plot curve until 80% or until 100% of TFmax
     const USE_FULL_CURVE = true;  // ← False: plot 80% of the curve
 
     let n;
     if (USE_FULL_CURVE) {
         n = Math.min(forceData.length, elongationData.length);
-        console.log("📈 Graficando curva completa (0–100 % TFmax)");
+        console.log("Plotting full curve (0–100 % TFmax)");
     } else {
         const cutoffIndex = forceData.findIndex(f => f.tendonForce >= TF80);
         n = Math.min(cutoffIndex + 1, elongationData.length);
-        console.log("📈 Graficando curva truncada (0–80 % TFmax)");
+        console.log("Plotting until 80% (0–80 % TFmax)");
     }
 
     const paired = [];
@@ -613,7 +644,7 @@ if (USE_LOWER_LEG_MOMENT_ARM) {
         });
     }
 
-    // === Ajuste polinómico usando la librería regression.js ===
+    // Polynomial adjustment using regression.js
     const result = regression.polynomial(
         paired.map(p => [p.x, p.y]),
         { order: 2 }
@@ -621,26 +652,23 @@ if (USE_LOWER_LEG_MOMENT_ARM) {
 
     console.log("✅ Polynomial fit:", result.string);
 
-    // Guardar resultados globalmente para cálculo de rigidez
+    // Save results globally for stiffness calculation
     window.lastRegressionResult = result;
     window.lastPairedData = paired;
 
-    // === Generar curva suavizada para el ajuste cuadrático ===
-    const coeffs = result.equation; // [a, b, c] del polinomio a*x² + b*x + c
+    // Generate smooth curve for quadratic adjustment
+    const coeffs = result.equation; // [a, b, c] of the polynomial a*x² + b*x + c
     const minX = Math.min(...paired.map(p => p.x));
     const maxX = Math.max(...paired.map(p => p.x));
     const fitData = [];
 
-    // Generar 100 puntos entre el rango 0–80%
+    // Generate 100 points in the range of 0 to 80%
     for (let x = minX; x <= maxX; x += (maxX - minX) / 100) {
         const y = coeffs[0] * x * x + coeffs[1] * x + coeffs[2];
         fitData.push({ x, y });
     }
 
-
-    console.log("✅ TFmax:", TFmax, "| TF80:", TF80, "| Frames usados:", n);
-
-    // === Crear o actualizar gráfico ===
+    // Create or update plot
     if (!chartTF80) {
         chartTF80 = new Chart(ctx, {
             type: "line",
@@ -694,12 +722,11 @@ if (USE_LOWER_LEG_MOMENT_ARM) {
 
     console.log("✅ Force–Elongation (0–80 %) plotted");
 
-    // === Visualizar la línea de rigidez (TF50–TF80) ===
+    // Visualize stiffness line (TF50 - TF80)
     const TF50 = 0.5 * TFmax;
 
-    // Encontrar elongaciones en el ajuste (fitData) que más se aproximen a TF50 y TF80
+    // Find elongations that most approximate the adjustment in TF50 and TF80
     function findXforForce(targetForce) {
-        // Busca el punto en fitData cuyo y esté más cerca de targetForce
         return fitData.reduce((prev, curr) => 
             Math.abs(curr.y - targetForce) < Math.abs(prev.y - targetForce) ? curr : prev
         );
@@ -708,13 +735,13 @@ if (USE_LOWER_LEG_MOMENT_ARM) {
     const point50 = findXforForce(TF50);
     const point80 = findXforForce(TF80);
 
-    // Crear dataset para la línea de rigidez
+    // Dataset creation for stiffness line
     const stiffnessLine = [
         { x: point50.x, y: point50.y },
         { x: point80.x, y: point80.y }
     ];
 
-    // Agregar la línea al gráfico
+    // Add the line to the plot
     chartTF80.data.datasets.push({
         label: "Stiffness (50–80 % TFₘₐₓ)",
         data: stiffnessLine,
@@ -728,11 +755,9 @@ if (USE_LOWER_LEG_MOMENT_ARM) {
 
     chartTF80.update();
 
-    console.log("✅ Stiffness line (TF50–TF80) added visually");
-
 }
 
-// === GENERATE FORCE–ELONGATION CURVE (TF0–TF80) ===
+// Generate Force-Elongation curve (TF0-TF80)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("generate-force-strain-tf0-tf80");
   if (!btn) {
@@ -742,7 +767,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btn.addEventListener("click", async function () {
     try {
-        // --- Activar pestaña Force–Elongation (TF0–TF80) ---
         const targetTab = document.querySelector("[data-target='plot-force-elongation-tf0080']");
         const targetSection = document.getElementById("plot-force-elongation-tf0080");
 
@@ -754,7 +778,6 @@ document.addEventListener("DOMContentLoaded", () => {
             targetSection.classList.add("active");
         }
 
-        // --- Procesamiento y gráfico ---
         await plotForceElongation_TF80();
     } catch (error) {
         console.error("❌ Error generating Force–Elongation (TF₀–TF₈₀):", error);
@@ -763,10 +786,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// === CALCULAR TENDON STIFFNESS Y NORMALIZED STIFFNESS ===
+// Calculate tendon stiffness and normalized stiffness
 document.getElementById("calculate-stiffness-btn").addEventListener("click", function () {
     try {
-        // Asegurar que ya exista el ajuste polinómico
+        // Make sure that the polynomial adjustment already exists
         if (!window.lastRegressionResult || !window.lastPairedData) {
             alert("Please generate the Force–Elongation (TF₀–TF₈₀) curve first.");
             return;
@@ -775,19 +798,19 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
         const result = window.lastRegressionResult;
         const coeffs = result.equation; // [a, b, c]
 
-        // === Obtener fuerza máxima ===
+        // Obtain max force
         const TFmax = Math.max(...window.lastPairedData.map(p => p.y));
         const TF50 = 0.5 * TFmax;
         const TF80 = 0.8 * TFmax;
 
-        // === Invertir polinomio (buscar elongación para una fuerza dada) ===
+        // Polynomial inversion (search elongation for a given force)
         function elongationForForce(F) {
             const [a, b, c] = coeffs;
             const discriminant = b * b - 4 * a * (c - F);
             if (discriminant < 0) return null;
             const x1 = (-b + Math.sqrt(discriminant)) / (2 * a);
             const x2 = (-b - Math.sqrt(discriminant)) / (2 * a);
-            return Math.max(x1, x2); // usamos la rama ascendente
+            return Math.max(x1, x2); 
         }
 
         const L50 = elongationForForce(TF50);
@@ -798,22 +821,22 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
             return;
         }
 
-        // === 1️⃣ Calcular stiffness (N/mm) ===
+        // Stiffness calculation (N/mm)
         const stiffness = (TF80 - TF50) / (L80 - L50);
 
-        // Mostrar en interfaz
+        // Show in UI
         const stiffnessSpan = document.getElementById("stiffness-value");
         stiffnessSpan.textContent = stiffness.toFixed(2);
 
-        // === 2️⃣ Calcular stiffness normalizada (N) ===
+        // Calculate normalized stiffness (N)
         const baselineValue = parseFloat(localStorage.getItem("deepPatella_baseline_mm"));
         if (!isNaN(baselineValue) && baselineValue > 0) {
             const normalizedStiffness = stiffness * baselineValue;
             const normalizedSpan = document.getElementById("normalized-stiffness-value");
             if (normalizedSpan) normalizedSpan.textContent = normalizedStiffness.toFixed(2);
-            console.log(`✅ Normalized stiffness: ${normalizedStiffness.toFixed(2)} N`);
+            console.log(`Normalized stiffness: ${normalizedStiffness.toFixed(2)} N`);
         } else {
-            console.warn("⚠️ Baseline tendon length missing or invalid for normalized stiffness.");
+            console.warn("Baseline tendon length missing or invalid for normalized stiffness.");
         }
 
         console.log(`✅ Tendon stiffness: ${stiffness.toFixed(2)} N/mm`);

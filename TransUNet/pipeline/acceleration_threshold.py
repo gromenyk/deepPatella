@@ -1,3 +1,15 @@
+"""
+acceleration_threshold.py
+
+This module computes frame-to-frame displacement, speed and acceleration
+for distal and proximal tendon insertion coordinates obtained after
+TransUNet inference. The output CSV is later used by the Kalman filter
+to identify discontinuities or unrealistic jumps in the signal.
+
+Pipeline step:
+    insertion_coords.csv  →  accelerations.csv
+"""
+
 import pandas as pd
 import numpy as np
 
@@ -92,5 +104,3 @@ def calculate_distances_and_speeds(input_csv_path, output_csv_path):
 
     print(f'df saved to {output_csv_path}.')
     return df
-
-#calculate_distances_and_speeds(input_csv_path='../outputs/insertion_coords.csv', output_csv_path='../outputs/accelerations.csv')

@@ -1,59 +1,78 @@
-// static/js/correction_frames.js
+// correction_frames.js
+//
+// Frame-by-frame manual correction module for DeepPatella.
+//
+// This script powers the "Coordinates Correction" page, allowing the user to
+// inspect and adjust Kalman-predicted tendon insertion coordinates.
+//
+// Responsibilities:
+//
+//   1. Load clean grayscale ultrasound frames from the backend
+//   2. Load distal/proximal insertion coordinates from Kalman-filtered CSV files
+//   3. Display each frame with its predicted points overlaid on a canvas
+//   4. Allow drag-and-drop correction of both distal and proximal landmarks
+//   5. Navigate across frames using slider and previous/next buttons
+//   6. Send corrected coordinates back to the backend for storage
+//   7. Allow restoring the original Kalman predictions (Reset)
+//
+// Notes:
+//   - Coordinates in CSV are row-major (Swapped X/Y) and require re-mapping to UI space
+//   - Corrections are stored only when the user explicitly clicks “Save Corrections”
+//   - All interaction is performed on the overlay canvas; the frame image remains static
+//
+
+
 let correctionFrames = [];
-let correctionCoords = []; // [{distal: {x, y}, proximal: {x, y}} por frame]
+let correctionCoords = []; // [{distal: {x, y}, proximal: {x, y}} by frame]
 let correctionFrameIndex = 0;
 let draggingPoint = null;
 
-// === 1. Cargar frames ===
+// 1. Load frames
 async function loadCorrectionFrames() {
-    const defaultCount = 250; // número estimado de frames
     try {
-        // Verificamos si el backend puede entregar el primer frame limpio
-        const testRes = await fetch('/clean_frame/0');
-        if (!testRes.ok) {
-            console.warn("⚠️ Clean frames not available yet.");
+        // Obtain real number of frames for the slider
+        const countRes = await fetch('/clean_frame_count');
+        const { count } = await countRes.json();
+
+        if (!count || count === 0) {
             document.getElementById('kalman-waiting-message').style.display = 'block';
             return;
         }
 
-        // Si llega aquí, asumimos que el cache está cargado
-        correctionFrames = Array.from({ length: defaultCount }, (_, i) => i);
-        document.getElementById('kalmanFrameSlider').max = correctionFrames.length - 1;
+        correctionFrames = Array.from({ length: count }, (_, i) => i);
+        document.getElementById('kalmanFrameSlider').max = count - 1;
 
         document.getElementById('kalman-waiting-message').style.display = 'none';
         await loadCoords();
         showCorrectionFrame();
+
     } catch (err) {
         console.error('Error loading correction frames:', err);
     }
 }
 
-
-// === 2. Cargar coordenadas desde los CSV del Kalman ===
+// Load coords from Kalman csvs
 async function loadCoords() {
 
-    // Cargar DISTAL
+    // Load distal coords
     const distalRaw = await fetch('/static/data/kalman_coords_distal.csv').then(r => r.text());
     const distalRows = distalRaw.trim().split('\n').slice(1); // skip header
 
-    // Cargar PROXIMAL
+    // Load proximal coords
     const proximalRaw = await fetch('/static/data/kalman_coords_proximal.csv').then(r => r.text());
     const proximalRows = proximalRaw.trim().split('\n').slice(1); // skip header
 
-    // Tomamos solo las 2 últimas columnas de cada CSV (Predicted_Distal_X/Y o Predicted_Proximal_X/Y)
+    // Only the last 2 columns of the csv are used
     correctionCoords = distalRows.map((distLine, i) => {
         const d = distLine.split(',');
         const p = proximalRows[i].split(',');
 
-        // últimas dos columnas = predicción Kalman
         const d_csv_x = parseFloat(d[d.length - 2]);
         const d_csv_y = parseFloat(d[d.length - 1]);
 
-        // UI coords deben ser reales: x=horizontal, y=vertical
-        const d_x = d_csv_y;  // REAL horizontal
-        const d_y = d_csv_x;  // REAL vertical
+        const d_x = d_csv_y;  
+        const d_y = d_csv_x;  
 
-        // Proximal igual
         const p_csv_x = parseFloat(p[p.length - 2]);
         const p_csv_y = parseFloat(p[p.length - 1]);
 
@@ -68,7 +87,7 @@ async function loadCoords() {
 }
 
 
-// === 3. Mostrar frame y coordenadas ===
+// 3. Show frame and coords
 function showCorrectionFrame() {
     const img = document.getElementById('kalman-frame');
     const canvas = document.getElementById('kalman-canvas');
@@ -82,7 +101,7 @@ function showCorrectionFrame() {
         canvas.style.display = 'block';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Dibuja puntos
+        // Draw points
         const coords = correctionCoords[correctionFrameIndex];
         if (!coords) return;
 
@@ -98,7 +117,7 @@ function showCorrectionFrame() {
     };
 }
 
-// === 4. Drag & drop ===
+// 4. Drag & drop
 function setupDragging() {
     const canvas = document.getElementById('kalman-canvas');
     const ctx = canvas.getContext('2d');
@@ -135,7 +154,7 @@ function setupDragging() {
     canvas.addEventListener('mouseleave', () => draggingPoint = null);
 }
 
-// === 5. Guardar cambios en backend ===
+// 5. Save changes on backend ===
 async function saveCorrections() {
     const res = await fetch('/update_coords', {
         method: 'POST',
@@ -146,7 +165,7 @@ async function saveCorrections() {
     alert(data.message);
 }
 
-// === 6. Slider y navegación ===
+// === 6. Slider and navigation ===
 function updateKalmanFrame() {
     correctionFrameIndex = parseInt(document.getElementById('kalmanFrameSlider').value);
     showCorrectionFrame();
@@ -164,12 +183,13 @@ document.getElementById('nextKalman').addEventListener('click', () => {
 
 document.getElementById('saveCorrections').addEventListener('click', saveCorrections);
 
-// Inicializar
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadCorrectionFrames();
     setupDragging();
 });
 
+// Reset coords modifications
 document.getElementById('resetCorrections').addEventListener('click', async () => {
     if (!confirm("⚠️ This will restore the original Kalman coordinates and overwrite your corrections. Continue?")) return;
 
@@ -180,8 +200,8 @@ document.getElementById('resetCorrections').addEventListener('click', async () =
 
         if (res.ok) {
             console.log("✅ Coordinates successfully restored.");
-            await loadCoords(); // recargar las coordenadas originales
-            showCorrectionFrame(); // refrescar vista
+            await loadCoords(); // Reload original coords
+            showCorrectionFrame(); // Refresh
         }
     } catch (err) {
         console.error("❌ Error resetting coordinates:", err);

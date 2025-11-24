@@ -1,18 +1,51 @@
+"""
+vit_seg_modeling.py
+
+Core implementation of the Vision Transformer (ViT) + UNet hybrid
+architecture used for tendon insertion segmentation in DeepPatella.
+
+This module provides:
+    - Full implementation of TransUNet:
+        * Patch and positional embeddings
+        * Multi-head self-attention blocks
+        * Transformer encoder
+        * ResNet-V2 hybrid encoder (optional)
+        * UNet-style decoder with skip connections
+        * Final segmentation head (1-channel heatmap)
+
+    - Utilities for loading pretrained ImageNet-21k weights exported
+      as NumPy arrays (np2th / load_from)
+
+    - Configurable model variants via CONFIGS:
+        * ViT-B/16, B/32, L/16, L/32, H/14
+        * R50-ViT-B/16 and R50-ViT-L/16 (hybrid encoders)
+
+Used in:
+    - Inference inside DeepPatella (only forward pass)
+    - (Optional) Training workflow via train.py + trainer_synapse.py
+
+Notes:
+    - DeepPatella uses the R50-ViT-B/16 variant (config-dependent).
+    - Training is not required for end-users; this file is preserved
+      to ensure reproducibility and compatibility with pretrained weights.
+    - Only a single output channel is used (1 = distal/proximal heatmap).
+
+This is an adapted version of the original TransUNet code
+(Chen et al., MICCAI 2021).
+"""
+
+
 # coding=utf-8
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
 import copy
 import logging
 import math
-
 from os.path import join as pjoin
-
 import torch
 import torch.nn as nn
 import numpy as np
-
 from torch.nn import CrossEntropyLoss, Dropout, Softmax, Linear, Conv2d, LayerNorm
 from torch.nn.modules.utils import _pair
 from scipy import ndimage
@@ -317,7 +350,7 @@ class DecoderBlock(nn.Module):
 
 class SegmentationHead(nn.Sequential):
 
-    def __init__(self, in_channels, out_channels=1, kernel_size=3, upsampling=1): ## GR: Specified out_channels to 1
+    def __init__(self, in_channels, out_channels=1, kernel_size=3, upsampling=1): # Specified out_channels to 1
         conv2d = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2)
         upsampling = nn.UpsamplingBilinear2d(scale_factor=upsampling) if upsampling > 1 else nn.Identity()
         sigmoid = nn.Sigmoid()
@@ -369,7 +402,7 @@ class DecoderCup(nn.Module):
 
 
 class VisionTransformer(nn.Module):
-    def __init__(self, config, img_size=224, num_classes=1, zero_head=False, vis=False): ## GR: num_classes from 21843 to 1
+    def __init__(self, config, img_size=224, num_classes=1, zero_head=False, vis=False): ## num_classes from 21843 to 1
         super(VisionTransformer, self).__init__()
         self.num_classes = num_classes
         self.zero_head = zero_head

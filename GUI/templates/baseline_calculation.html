@@ -1,3 +1,38 @@
+<!--
+    DeepPatella – Baseline Tendon Length Calculation Page
+
+    This page computes the tendon length at rest (baseline), which is required
+    for all downstream stiffness computations.
+
+    Responsibilities:
+      • Load the first video frame and display model-predicted tendon insertions
+        (distal and proximal markers)
+      • Allow manual correction of these coordinates via canvas interaction
+      • Allow the user to add extra waypoints along the tendon path to account
+        for slack curvature
+      • Compute tendon length in pixels using Catmull–Rom interpolation
+        (via tendonCurve.js)
+      • Convert pixel length to millimeters using the user-provided conversion
+        factor
+      • Store baseline tendon length and px→mm factor in localStorage so the
+        stiffness module can use them later
+
+    Dependencies:
+      - tendonCurve.js → spline interpolation + curve length computation
+      - baseline.js     → UI logic, canvas interaction, localStorage management
+      - reset_ui.js     → reset button behavior shared across pages
+
+    Notes:
+      - The <body> tag embeds CSV URLs via data-* attributes for JS modules.
+      - All coordinate inputs (#distal, #proximal, #extra1, #extra2) are filled 
+        dynamically and must remain readonly.
+      - The computed baseline mm value is saved under:
+            deepPatella_baseline_mm
+        and the conversion factor under:
+            deepPatella_conversion_factor
+-->
+
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -16,12 +51,19 @@
         <h1>DeepPatella</h1>
         <p>Automatic quantification of patellar tendon stiffness</p>
     </div>
-
     <menu>
-        <li><a href="{{ url_for('home') }}">Configurations & Visualizations</a></li>
-        <li><a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a></li>
-        <li><a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a></li>
-        <li id="reset-btn">Reset UI</li>
+        <li class="{% if request.endpoint == 'home' %}active{% endif %}">
+            <a href="{{ url_for('home') }}">Video Processing</a>
+        </li>
+
+        <li class="{% if request.endpoint == 'baseline_calculation' %}active{% endif %}">
+            <a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a>
+        </li>
+
+        <li class="{% if request.endpoint == 'stiffness_calculation' %}active{% endif %}">
+            <a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a>
+        </li>
+            <li id="reset-btn">Reset UI</li>
     </menu>
 
     <div class="baseline_calculation">
@@ -33,10 +75,10 @@
         </div>
 
         <div class="baseline-container">
-            <!-- 📌 Bloque Izquierdo -->
+            <!-- Left block -->
             <div class="baseline-left">
 
-                <!-- Card de Coordenadas -->
+                <!-- Coordinates card -->
                 <div class="card">
                     <h3>Coordinates</h3>
 
@@ -65,28 +107,21 @@
                     <input type="text" id="extra2" placeholder="Click on the image" readonly>
                 </div>
 
-                <!-- Card de Resultados -->
+                <!-- Results card -->
                 <div class="card calculation-block"> 
                     <h3>Results</h3>
-
-                    <!-- Botón para calcular longitud -->
                     <button id="calculate-btn">Calculate tendon length (pixels)</button>
-
                     <label for="tendon-length">Tendon length (px)</label>
                     <input type="text" id="tendon-length" readonly>
-
                     <label for="conversion-factor">Pixel to Millimeter Conversion Factor</label>
                     <input type="text" id="conversion-factor" placeholder="e.g. 6.48">
-
-                    <!-- Botón para convertir -->
                     <button id="convert-btn">Convert to mm</button>
-
                     <label for="tendon-length-mm">Tendon length (mm)</label>
                     <input type="text" id="tendon-length-mm" readonly>
                 </div>
             </div>
 
-            <!-- 📌 Bloque Derecho -->
+            <!-- Right block -->
             <div class="baseline-right card">
                 <h3>First Frame</h3>
                 <div class="image-container">

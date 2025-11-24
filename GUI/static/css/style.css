@@ -1,3 +1,5 @@
+/* ==== GLOBAL STYLES ==== */
+
 body {
     font-family: "Helvetica", "Arial", sans-serif;
     margin: 0;
@@ -14,7 +16,7 @@ h2 {
     font-family: "Helvetica", "Arial", sans-serif;
     color: #2D373C;
     font-size: 40px;
-    text-align: center; /* Centra el texto dentro de cada columna */
+    text-align: center; 
     margin-top: 20px;
 }
 
@@ -22,6 +24,7 @@ p {
     color:#2D373C;
 }
 
+/* Header section */
 .banner {
     background-color: #A5D7D2;
     color: black;
@@ -33,6 +36,56 @@ p {
     box-sizing: border-box;
 }
 
+/* ==== MENU STYLES ==== */
+menu {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    list-style-type: none;
+    gap: 50px;
+    background-color: #46505A;
+    color: white;
+    font-size: 20px;
+    height: 50px;
+    margin-top: 0px;
+}
+
+menu a {
+    text-decoration: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+menu li {
+    list-style-type: none;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    cursor: pointer;
+}
+
+/* Reset button specific styles */
+#resetCorrections {
+    background-color: #D20537;
+    color: white;
+    border-color: #b5002e;
+}
+#resetCorrections:hover {
+    background-color: #b5002e;
+}
+
+/* Styles for the active tab */
+menu li.active a {
+    color: #A5D7D2; 
+    font-weight: bold; 
+    border-bottom: 3px solid #A5D7D2; 
+}
+
+/* ==== SPECIFIC VIDEO PROCESSING (INDEX.HTML) STYLES ==== */ 
 .video_processing-title {
     text-align: center;
     font-size: 42px;
@@ -87,46 +140,6 @@ p {
     font-size: 32px;
     color: #2D373C;
     margin-bottom: 20px;
-}
-
-
-/* Menu */
-menu {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    list-style-type: none;
-    gap: 50px;
-    background-color: #46505A;
-    color: white;
-    font-size: 20px;
-    height: 50px;
-    margin-top: 0px;
-}
-
-menu a {
-    text-decoration: none;
-    color: white;
-    display: flex;
-    align-items: center;
-    height: 100%;
-}
-
-menu li {
-    list-style-type: none;
-    padding: 0 10px;
-    display: flex;
-    align-items: center;
-    height: 100%;
-    cursor: pointer;
-}
-
-/* Estilo para la pestaña activa */
-menu li.active a {
-    color: #A5D7D2; /* Cambia el color de la pestaña activa */
-    font-weight: bold; /* O cualquier estilo que prefieras */
-    border-bottom: 3px solid #A5D7D2; /* Puedes añadir una línea o border debajo */
 }
 
 
@@ -310,16 +323,16 @@ menu li.active a {
     font-size: 18px;
     font-weight: bold;
     text-align: center;
-    line-height: 30px;  /* Asegura que el texto se mantenga verticalmente centrado en la barra */
-    width: 0%;  /* Comienza con 0% de ancho */
-    background-color: #46505A;  /* El color de fondo del texto */
+    line-height: 30px;  
+    width: 0%;  
+    background-color: #46505A;  
     transition: None;
 }
 
 .progress-bar div {
     height: 30px;
     background-color: #A5D7D2;
-    width: 0%;  /* Esta es la que se va actualizando */
+    width: 0%;  
 }
 
 #progress-time {
@@ -346,37 +359,98 @@ menu li.active a {
 
 /* Visualizations section */
 
-
-
 #waiting-video-message {
     color: #2D373C;
     font-size: 20px;
     font-style: italic;
 }
 
-.frames-container {
-    display: flex;
-    flex-direction: column;
-}
-
-#frameSlider {
-    width: 100%;
-    background-color: #A5D7D2;
-    border: solid 1px #2D373C;
-    border-radius: 6px;
-    margin-top: 20px;
-    margin-bottom: 20px;
-    height: 20px;
-}
-
-/*Corrections section */
+/*Coordinates corrections section */
 
 #kalmanFrameSlider {
     width: 100%;
     margin-top: 25px;
 }
 
-/* Baseline Calculation page */
+/* Video controlling buttons styles (common to visualizations and coordinates correction) */
+.video-btns {
+    display: flex;
+    flex-direction: column; 
+    align-items: center;
+    gap: 10px;
+    background-color: #D2EBE9;
+    padding: 10px 20px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.video-btns button {
+    width: 180px; 
+    background-color: #A5D7D2;
+    color: #46505A;
+    border: solid 1px #46505A;
+    font-size: 16px;
+    border-radius: 6px;
+    padding: 8px 0;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.video-btns button:hover {
+    background-color: #46505A;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.frames-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 620px; 
+    box-sizing: border-box;
+}
+
+#frameSlider,
+#kalmanFrameSlider {
+    width: 100%;
+    background-color: #A5D7D2;
+    border: solid 1px #2D373C;
+    border-radius: 6px;
+    margin-top: 20px;
+    margin-bottom: 25px;
+    height: 20px;
+}
+
+.col_middle .video-btns,
+.col_right .video-btns {
+    margin-top: auto;
+}
+
+.col_middle .frames-container,
+.col_right .frames-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;     
+    justify-content: center; 
+    width: 100%;
+}
+
+.col_middle canvas,
+.col_right canvas,
+.col_middle img,
+.col_right img {
+    display: block;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: 0;
+    margin-bottom: 0;
+    max-width: 100%;
+    height: auto;
+}
+
+/* ==== BASELINE CALCULATION STYLES ==== */
 
 .title-baseline {
     text-align: center;
@@ -400,7 +474,7 @@ menu li.active a {
 
 .baseline-left label {
     display: flex;
-    justify-content: space-between; /* texto a la izquierda, círculo a la derecha */
+    justify-content: space-between; 
     align-items: center;
     font-weight: bold;
     margin-top: 10px;
@@ -420,6 +494,38 @@ menu li.active a {
     align-items: center;
 }
 
+.baseline-right img,
+.baseline-right canvas {
+    width: 512px !important;
+    height: 512px !important;
+    display: block;
+    margin: 0 auto;
+    object-fit: contain;
+}
+
+.baseline-right .image-container {
+    position: relative;
+    width: 512px;
+    height: 512px;
+    margin: 0 auto; 
+}
+
+.baseline-right .image-container img {
+    display: block;
+    width: 512px;
+    height: 512px;
+    margin: 0;
+}
+
+.baseline-right .image-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 512px;
+    height: 512px;
+    pointer-events: none; 
+}
+
 .image-container {
     background: #f9f9f9;
     position: relative;
@@ -431,27 +537,9 @@ menu li.active a {
     height: auto;
 }
 
-#outlier-warning {
-    display: none;
-    background: #ffdddd;
-    border:2px solid #cc0000;
-    color:#2D373C;
-    padding:10px;
-    margin:10px 0;
-    border-radius:6px;
-    font-weight:bold;
-    text-align:center;
-}
-
-.outlier-link {
-    color: #cc0000;
-    cursor: pointer;
-    text-decoration: underline;
-    font-weight: bold;
-}
-
-.outlier-link:hover {
-    color: #ff6600;
+#saveCorrections {
+    background-color: #2D373C;
+    color: white;
 }
 
 /* Cards */
@@ -490,7 +578,7 @@ menu li.active a {
     height: 14px;
     border-radius: 50%;
     margin-left: 10px;
-    flex-shrink: 0; /* evita que se deforme */
+    flex-shrink: 0; 
 }
 
 /* Coordinates input styles */
@@ -498,17 +586,17 @@ menu li.active a {
 .coord-row {
     display: flex;
     align-items: center;
-    gap: 10px;         /* espacio entre elementos */
+    gap: 10px;        
     margin-top: 10px;
 }
 
 .coord-row label {
-    flex: 1;           /* que el label ocupe espacio proporcional */
+    flex: 1;          
     font-weight: bold;
 }
 
 .coord-row input {
-    flex: 1.2;         /* input más ancho que el label */
+    flex: 1.2;         
     padding: 4px;
 }
 
@@ -521,10 +609,9 @@ menu li.active a {
 
 /* Calculate tendon length button */
 
-/* === Botón Calcular Tendón === */
 #calculate-btn {
-    background-color: #46505A;   /* verde agua como el resto */
-    color: white;              /* gris oscuro */
+    background-color: #46505A;   
+    color: white;             
     border: solid 1px #46505A;
     font-size: 14px;
     font-weight: bold;
@@ -536,13 +623,13 @@ menu li.active a {
 }
 
 #calculate-btn:hover {
-    background-color: #46505A;   /* gris oscuro */
+    background-color: #46505A;   
     color: white;
-    transform: scale(1.05);      /* pequeño zoom */
+    transform: scale(1.05);      
 }
 
 #calculate-btn:active {
-    transform: scale(0.97);      /* feedback al click */
+    transform: scale(0.97);      
 }
 
 #convert-btn {
@@ -570,7 +657,7 @@ menu li.active a {
     transition: all ease-in-out;
 }
 
-/* Stiffness Calculation Styles */
+/* ==== STIFFNESS CALCULATION STYLES */
 
 #stiffness-title {
     text-align: center;
@@ -594,7 +681,7 @@ menu li.active a {
     flex-direction: row;
 }
 
-/* === Tendon Stiffness Box === */
+/* Tendon Stiffness Box */
 .stiffness-box {
     background-color: #D2EBE9;
     border-radius: 10px;
@@ -806,7 +893,7 @@ menu li.active a {
 }
 
 .chart-container canvas.active {
-  display: block; /* solo el activo se muestra */
+  display: block; 
 }
 
 
@@ -875,7 +962,7 @@ menu li.active a {
 }
 
 #chart-elongation {
-  display: block; /* visible por defecto */
+  display: block; 
 }
 
 
@@ -890,151 +977,4 @@ menu li.active a {
 
 .plot-section.active {
   display: block;
-}
-
-/* === Botones de las secciones de Visualizations y Coordinate Correction === */
-
-/* Contenedor general */
-.video-btns {
-    display: flex;
-    flex-direction: column; /* apiladas en dos filas */
-    align-items: center;
-    gap: 10px;
-    background-color: #D2EBE9;
-    padding: 10px 20px;
-    border-radius: 8px;
-    margin-top: 10px;
-}
-
-/* Botones */
-.video-btns button {
-    width: 180px; /* igual ancho en ambas columnas */
-    background-color: #A5D7D2;
-    color: #46505A;
-    border: solid 1px #46505A;
-    font-size: 16px;
-    border-radius: 6px;
-    padding: 8px 0;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
-}
-
-/* Hover general */
-.video-btns button:hover {
-    background-color: #46505A;
-    color: white;
-    transform: translateY(-1px);
-}
-
-/* Estilo especial para el botón Reset */
-#resetCorrections {
-    background-color: #D20537;
-    color: white;
-    border-color: #b5002e;
-}
-#resetCorrections:hover {
-    background-color: #b5002e;
-}
-
-/* === Alinear sliders y botones entre Visualizations y Corrections === */
-.frames-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    min-height: 620px; /* igual altura total */
-    box-sizing: border-box;
-}
-
-/* Sliders alineados */
-#frameSlider,
-#kalmanFrameSlider {
-    width: 100%;
-    background-color: #A5D7D2;
-    border: solid 1px #2D373C;
-    border-radius: 6px;
-    margin-top: 20px;
-    margin-bottom: 25px;
-    height: 20px;
-}
-
-/* Empuja botones hacia abajo si sobra espacio */
-.col_middle .video-btns,
-.col_right .video-btns {
-    margin-top: auto;
-}
-
-/* === Centrar el video (canvas o imagen) dentro de cada columna === */
-
-/* Asegura que los contenedores de frames sean flexibles y centrados */
-.col_middle .frames-container,
-.col_right .frames-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;     /* centra horizontalmente */
-    justify-content: center; /* centra verticalmente si hay espacio */
-    width: 100%;
-}
-
-/* Centrar el canvas o imagen dentro del contenedor */
-.col_middle canvas,
-.col_right canvas,
-.col_middle img,
-.col_right img {
-    display: block;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    margin-top: 0;
-    margin-bottom: 0;
-    max-width: 100%;
-    height: auto;
-}
-
-/* Si el contenedor interno usa inline-block (caso típico en tu image-container) */
-.image-container {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center;
-    width: 100%;
-    background: none; /* elimina cualquier fondo que lo desplace */
-}
-
-#saveCorrections {
-    background-color: #2D373C;
-    color: white;
-}
-
-/* === Corrige tamaño del frame inicial en Baseline Calculation === */
-.baseline-right img,
-.baseline-right canvas {
-    width: 512px !important;
-    height: 512px !important;
-    display: block;
-    margin: 0 auto;
-    object-fit: contain;
-}
-
-/* Asegura que el canvas quede perfectamente alineado con la imagen */
-.baseline-right .image-container {
-    position: relative;
-    width: 512px;
-    height: 512px;
-    margin: 0 auto; /* centra todo el bloque */
-}
-
-.baseline-right .image-container img {
-    display: block;
-    width: 512px;
-    height: 512px;
-    margin: 0;
-}
-
-.baseline-right .image-container canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 512px;
-    height: 512px;
-    pointer-events: none; /* evita interferir con clics */
 }

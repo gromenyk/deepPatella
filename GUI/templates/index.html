@@ -1,3 +1,26 @@
+<!--
+    DeepPatella – Video Processing & Coordinate Correction Page
+
+    This is the main UI of the DeepPatella pipeline. It handles:
+      • Video upload and backend inference triggering
+      • Display of per–frame predictions (raw model output)
+      • Playback controls to inspect the predicted coordinates
+      • Interactive correction of insertion coordinates via canvas
+      • Progress tracking for long-running inference jobs
+
+    Dependencies:
+      - upload.js            → file selection UI + persistence
+      - inference.js         → inference progress, polling, backend triggers
+      - frames.js            → video frame rendering + slider sync
+      - correction_frames.js → Kalman correction overlay + point editing
+      - reset_ui.js          → reset buttons and UI state cleanup
+
+    Notes:
+      - Several JS modules depend on fixed IDs (#frame, #kalman-canvas, #progress-bar-fill, etc.)
+      - The page is split into three columns: upload/inference, visualization, correction
+      - This is the entry point of the entire DeepPatella workflow
+-->
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -11,16 +34,23 @@
         <h1>DeepPatella</h1>
         <p>Automatic quantification of patellar tendon stiffness</p>
     </div>
-
     <menu>
-        <li><a href="{{ url_for('home') }}">Video Processing</a></li>
-        <li><a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a></li>
-        <li><a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a></li>
-        <li id="reset-btn">Reset UI</li>
+        <li class="{% if request.endpoint == 'home' %}active{% endif %}">
+            <a href="{{ url_for('home') }}">Video Processing</a>
+        </li>
+
+        <li class="{% if request.endpoint == 'baseline_calculation' %}active{% endif %}">
+            <a href="{{ url_for('baseline_calculation') }}">Baseline Calculation</a>
+        </li>
+
+        <li class="{% if request.endpoint == 'stiffness_calculation' %}active{% endif %}">
+            <a href="{{ url_for('stiffness_calculation') }}">Tendon Stiffness Calculation</a>
+        </li>
+            <li id="reset-btn">Reset UI</li>
     </menu>
     <h2 class="video_processing-title">Video Processing</h2>
     <div class="main">
-        <!-- Columna izquierda -->
+        <!-- Left column -->
         <div class="col_left">
             <h2>Video uploading and inference</h2>
             <p>Please upload the video here and run the inference to get started</p>
@@ -68,7 +98,7 @@
             </div>
         </div>
 
-        <!-- Columna central -->
+        <!-- Central column -->
         <div class="col_middle">
             <h2>Visualizations</h2>
             <p style="text-align: center">Here you can visualize the video with the predicted coordinates, in order to confirm if the predictions make sense</p>
@@ -83,7 +113,7 @@
             </div>
         </div>
 
-        <!-- Columna derecha -->
+        <!-- Right column -->
         <div class="col_right">
             <h2>Coordinates Correction</h2>
             <p style="text-align:center;">If you need to correct the predicted coordinates, you can do so here. Use the slider to quickly jump to any part of the video.</p>

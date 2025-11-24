@@ -1,3 +1,18 @@
+"""
+center_of_mass.py
+
+This module takes the predicted heatmaps produced by TransUNet (one per frame),
+finds the insertion coordinates (distal/proximal) using a simple center-of-mass
+approach on the hottest pixels, rescales them to the original 512×512 frame
+space, overlays them on the original ultrasound images, and generates:
+
+    - A CSV file with frame-by-frame insertion coordinates
+    - PNG images with overlayed centroids for visual inspection
+
+Pipeline step:
+    predicted_images + original_images → insertion_coords.csv + placed_centroids/
+"""
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -98,11 +113,10 @@ def place_centroids(npz_files, predictions_dir, original_images_file, placed_cen
     df = pd.DataFrame(csv_data, columns=['distal_X', 'distal_y', 'proximal_x', 'proximal_y', 'FPS'])
     df = df.astype({'distal_X': 'float64', 'distal_y': 'float64', 'proximal_x': 'float64', 'proximal_y': 'float64', 'FPS': 'float64'})
     df.to_csv(csv_output_path, index=False, float_format='%.10f')
-    print(f'CSV de coordenadas guardado en {csv_output_path}')
+    print(f'Coordinates CSV saved in {csv_output_path}')
 
 
 def save_centroid_image(original_image, scaled_left, scaled_right, npz_file, placed_centroids):
-    """Guarda la imagen con los centroides sobre la imagen original."""
     fig, ax = plt.subplots()
     ax.imshow(original_image, cmap='gray')
     ax.scatter(scaled_left[1], scaled_left[0], c='green', label='Left Center', s=20)

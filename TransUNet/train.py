@@ -1,3 +1,20 @@
+"""
+train.py
+
+Training script for the TransUNet-based model used in DeepPatella.
+
+This file is **not used by the GUI or inference pipeline**.
+
+It performs the following tasks:
+
+    - Loads the NPZ dataset (ultrasound frames + masks + coordinates)
+    - Builds the TransUNet (ViT-Seg) architecture with the selected configuration
+    - Applies standard losses (BCE + Dice) via trainer_synapse()
+    - Handles epochs, logging, checkpoints and snapshot folder creation
+    - Supports different ViT variants, skip connections and patch sizes
+
+"""
+
 import argparse
 import logging
 import os

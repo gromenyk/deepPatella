@@ -1,7 +1,35 @@
-// static/js/inference.js
+// inference.js
+//
+// Inference orchestration and progress tracking module for DeepPatella.
+//
+// This script manages the full inference workflow triggered from the UI,
+// including process launching, stopping, live progress updates, and UI state
+// synchronization after reloads.
+//
+// Responsibilities:
+//
+//   1. Send a request to the backend to start the TransUNet inference pipeline
+//   2. Enable/disable UI buttons depending on inference state (start/stop)
+//   3. Poll the backend every second to get real-time progress (% and status)
+//   4. Update the progress bar, elapsed time, and dropdown details on the UI
+//   5. Restore progress state after page refresh (resumes polling if running)
+//   6. Allow manual stopping of the inference process from the UI
+//   7. Trigger loading of extracted frames and Kalman correction frames once
+//      inference finishes successfully
+//
+// Notes:
+//   - The backend exposes /run_inference, /stop_inference and /progress endpoints
+//   - Progress polling automatically stops when the process reaches a final state
+//   - Progress state persists server-side, so the UI can recover after reload
+//   - When inference completes, this module triggers:
+//         → checkFrames()  (raw frames viewer)
+//         → loadCorrectionFrames()  (Kalman correction UI), if available
+//
+
 let inferenceRunning = false;
 let pollingHandle = null;
 
+// Enables or disables the start and stop buttons depending on current state
 function toggleButton() {
     const runButton = document.getElementById('start-inference-button');
     const stopButton = document.getElementById('stop-inference-button');
@@ -12,6 +40,7 @@ function toggleButton() {
     }
 }
 
+// Restores progress bar
 function restoreProgressState() {
     fetch('/progress')
         .then(response => response.json())
@@ -41,7 +70,7 @@ function restoreProgressState() {
             if (status === "running") {
                 inferenceRunning = true;
                 toggleButton();
-                pollProgress(); // seguir desde donde estaba
+                pollProgress(); 
             } else if (status === "done") {
                 inferenceRunning = false;
                 toggleButton();
@@ -52,7 +81,7 @@ function restoreProgressState() {
         .catch(err => console.error("Error restoring progress state:", err));
 }
 
-
+// Polling to update progress bar
 function pollProgress() {
     fetch('/progress')
         .then(response => response.json())
@@ -85,9 +114,9 @@ function pollProgress() {
                 toggleButton();
                 alert(data.message);
                 if (data.status === 'done') {
-                    checkFrames(); // carga los frames de la izquierda
+                    checkFrames(); 
 
-                    // 🔥 Cargar automáticamente los frames Kalman en la columna derecha
+                    // Load kalman corrected frames on right column
                     if (typeof loadCorrectionFrames === 'function') {
                         console.log("✅ Inference completed — loading Kalman correction frames...");
                         loadCorrectionFrames();
@@ -98,6 +127,7 @@ function pollProgress() {
         .catch(err => console.error('Error polling progress:', err));
 }
 
+// Starts the inference
 function startInference() {
     fetch('/run_inference', { method: 'POST' })
         .then(() => {
@@ -108,6 +138,7 @@ function startInference() {
         .catch(err => console.error('Error starting inference:', err));
 }
 
+// Stops the inference
 function stopInference() {
     fetch('/stop_inference', { method: 'POST' })
         .then(() => {
@@ -127,6 +158,7 @@ function stopInference() {
         .catch(err => console.error('Error stopping inference:', err));
 }
 
+// Initialize UI and attach event listeners
 document.addEventListener('DOMContentLoaded', () => {
     toggleButton();
     restoreProgressState();

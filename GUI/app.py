@@ -1,3 +1,74 @@
+"""
+server.py — DeepPatella Backend API
+-----------------------------------
+
+This module implements the complete backend logic for the DeepPatella GUI.
+It provides video upload, model inference, frame serving, Kalman-corrected
+coordinate editing, baseline processing, force-ramp synchronization, stiffness
+calculation, cleanup utilities and progress tracking.
+
+The backend is built with Flask and interacts with:
+    - The TransUNet inference pipeline (via subprocess)
+    - Cached clean frames stored in NPZ format
+    - Kalman-filtered coordinate CSVs
+    - Client-side JavaScript modules (upload.js, frames.js,
+      inference.js, correction_frames.js, baseline.js, stiffness.js)
+
+MAIN RESPONSIBILITIES
+---------------------
+1. Serve the three UI pages:
+       • "/"                      → Video Processing
+       • "/baseline_calculation"  → Rest-length computation
+       • "/stiffness_calculation" → Force/elongation processing
+
+2. Handle video upload:
+       • Saves uploaded ultrasound video into TransUNet/datasets/videos
+       • Persists original filename for GUI display
+
+3. Run deep-learning inference (asynchronous thread):
+       • Launches test.py via subprocess
+       • Streams stdout to update a global progress dictionary
+       • Supports manual stopping using a stop event
+
+4. Expose inference progress:
+       • "/progress" returns percent, status, message, elapsed time
+
+5. Serve extracted frames:
+       • "/check_frames"     → verify if frames exist
+       • "/get_frames"       → list available frames
+       • "/frames/<name>"    → serve single frame file
+
+6. Serve *clean* TransUNet output frames (from NPZ cache):
+       • "/clean_frame/<i>"        → image bytes from memory
+       • "/clean_frame_count"      → total number of cached frames
+
+7. Baseline calculation support (coordinates):
+       • Provides Kalman coordinates to the GUI
+       • Allows editing them interactively
+       • "/update_coords" overwrites corrected values in CSVs
+       • "/reset_coords" restores backups
+
+8. Force-ramp processing:
+       • Reads uploaded Excel file (“force_ramp.xlsx”)
+       • Downsamples force to match video frames
+       • Loads distal/proximal tendon coordinates
+       • Computes tendon elongation in px → mm
+       • Performs cross-correlation to align force / elongation
+       • Saves processed CSV for stiffness module
+
+9. Cleanup/reset utility:
+       • Removes temporary folders and files
+       • Regenerates .gitkeep when required
+       • Resets internal progress state
+
+NOTE
+----
+This file contains all backend routes and state management. 
+Front-end logic is handled exclusively by JavaScript modules 
+in /static/js/.
+
+"""
+
 import os
 import subprocess
 import time
@@ -25,18 +96,31 @@ progress = {
 inference_process = None
 stop_event = Event()
 
+# Helpers and others
+## Check file extension
+def allowed_file(filename):
+    allowed_extensions = {'mp4', 'avi'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+# Serve clean frames directly from memory cache
+CLEAN_FRAMES_CACHE = None
+
+# Render homepage 
 @app.route('/')
 def home():
     return render_template('index.html')
 
+# Render baseline calculation page
 @app.route('/baseline_calculation')
 def baseline_calculation():
     return render_template('baseline_calculation.html')
 
+# Render stiffness calculation page
 @app.route('/stiffness_calculation')
 def stiffness_calculation():
     return render_template('stiffness_calculation.html')
 
+# Upload raw video
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'video' not in request.files:
@@ -51,12 +135,10 @@ def upload_file():
         upload_folder = os.path.join(project_root, 'TransUNet', 'datasets', 'videos')
         os.makedirs(upload_folder, exist_ok=True)
 
-        # Guardamos con nombre fijo interno, pero mantenemos el original
         saved_filename = 'original_video.mp4'
         filepath = os.path.join(upload_folder, saved_filename)
         file.save(filepath)
 
-        # Pasamos el nombre original al template
         return render_template(
             'index.html',
             message='Video uploaded successfully! Everything is set to run the inference!',
@@ -65,7 +147,7 @@ def upload_file():
     else:
         return render_template('index.html', message='File type not allowed')
 
-    
+# Run inference    
 @app.route('/run_inference', methods=['POST'])
 def run_inference():
     stop_event.clear()
@@ -122,6 +204,7 @@ def run_inference_thread():
         progress["last_line"] = f"❌ Exception: {str(e)}"
         progress["status"] = "error"
 
+# Stop inference if required
 @app.route('/stop_inference', methods=['POST'])
 def stop_inference():
     global inference_process, progress
@@ -133,6 +216,7 @@ def stop_inference():
         progress['message'] = '🛑 Inference manually stopped'
     return '', 204
 
+# Obtains the inference progress
 @app.route('/progress')
 def get_progress():
     elapsed_time = 0
@@ -145,23 +229,21 @@ def get_progress():
         "elapsed_time": elapsed_time
     })   
 
-def allowed_file(filename):
-    allowed_extensions = {'mp4', 'avi'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
-
+# Check if TransUNet already produced frames and the UI can start loading them
 @app.route('/check_frames')
 def check_frames():
     frames_dir = os.path.join('static', 'frames')
-    # Verificar si el archivo frames_ready.flag está presente en el directorio
+    # Check if file frames_ready.flag is present on the folder
     flag_file_path = os.path.join(frames_dir, 'frames_ready.flag')
     
     if os.path.exists(flag_file_path):
         frames = [f for f in os.listdir(frames_dir) if f.endswith('.jpg') or f.endswith('.png')]
-        frames_available = len(frames) > 0  # Comprobar si hay frames disponibles
+        frames_available = len(frames) > 0  # Check if there are available frames
         return jsonify({'frames_available': frames_available})
     else:
         return jsonify({'frames_available': False})
 
+# Return the list of generated frame filenames to the UI
 @app.route('/get_frames')
 def get_frames():
     frames_dir = os.path.join('static', 'frames')
@@ -175,10 +257,12 @@ def get_frames():
         print(f"Error loading frames: {e}")
         return jsonify({'frames': []})
     
+#Serve a single frame image file by filename
 @app.route('/frames/<filename>')
 def get_frame(filename):
     return send_from_directory(os.path.join('static', 'frames'), filename)
 
+# Upload the force ramp Excel file and save it to static/data
 @app.route('/upload_force', methods=['POST'])
 def upload_force():
     if 'file' not in request.files:
@@ -191,7 +275,7 @@ def upload_force():
     if not file.filename.lower().endswith('.xlsx'):
         return jsonify({'message': 'Invalid file type. Please upload an .xlsx file.'}), 400
 
-    # Guardar en GUI/static/data/force_ramp.xlsx
+    # Save in GUI/static/data/force_ramp.xlsx
     save_path = os.path.join(app.static_folder, 'data', 'force_ramp.xlsx')
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     file.save(save_path)
@@ -199,7 +283,7 @@ def upload_force():
     print(f"✅ Force ramp file saved at: {save_path}")
     return jsonify({'message': 'Force ramp file uploaded successfully!'})
 
-
+# Reset UI
 @app.route("/cleanup", methods=["DELETE"])
 def cleanup():
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -228,7 +312,7 @@ def cleanup():
     ]
 
     try:
-        # Limpieza de carpetas y archivos (igual que antes)
+        # Cleanup of folders and files
         for folder in keep_with_gitkeep:
             if os.path.isdir(folder):
                 shutil.rmtree(folder)
@@ -252,7 +336,7 @@ def cleanup():
         global CLEAN_FRAMES_CACHE
         CLEAN_FRAMES_CACHE = None
 
-        # 🔄 Resetear estado de progreso interno
+        # Reset internal progress status
         global progress
         progress = {
             "status": "idle",
@@ -270,7 +354,7 @@ def cleanup():
     except Exception as e:
         return jsonify({"message": f"Error in reseting: {str(e)}"}), 500
 
-
+# Process the force ramp Excel file: resample force, align with video frames, compute elongation and cross-correlation.
 @app.route('/process_force', methods=['POST'])
 def process_force():
     try:
@@ -282,16 +366,16 @@ def process_force():
         coords_kalman_proximal_path = os.path.join(data_dir, "kalman_coords_proximal.csv")
         output_path = os.path.join(data_dir, "force_ramp_processed.csv")
 
-        # --- Switch to use directly predicted coords, or use the kalman corrected coords ---
-        use_kalman = True   # ⬅️ True = Use Kalman | False = Uses insertion_coords.csv (blunt output)
+        # Switch to use directly predicted coords, or use the kalman corrected coords 
+        use_kalman = True   # True = Use Kalman | False = Uses insertion_coords.csv (blunt output)
 
-        # --- Read force ramp file (Excel) ---
+        # Read force ramp file (Excel) 
         df_force = pd.read_excel(ramp_path)
 
-        # --- Filter by sync value ---
+        # Filter by sync value 
         #df_force = df_force[df_force["Sync"] > 3.9]
 
-        # --- Read coordinates ---
+        # Read coordinates
         if use_kalman:
             kalman_distal = pd.read_csv(coords_kalman_distal_path)
             kalman_proximal = pd.read_csv(coords_kalman_proximal_path)
@@ -301,16 +385,16 @@ def process_force():
 
             df_coords = pd.concat([kalman_distal, kalman_proximal], axis=1)
             df_coords.columns = ['distal_X', 'distal_y', 'proximal_x', 'proximal_y']
-            print("📂 Usando coordenadas de archivos Kalman.")
+            print("Using coords from Kalman files")
         else:
             df_coords = pd.read_csv(coords_path)
-            print("📂 Usando coordenadas de insertion_coords.csv.")
+            print("Using coords from insertion_coords.csv.")
 
         num_frames = len(df_coords)
 
-        # --- Parámetros ---
-        fs_force = 1000.0        # frecuencia del CSV de fuerza (Hz)
-        fps_video = 51.491       # frames por segundo del video
+        # Parameters
+        fs_force = 1000.0        # Force csv frequency (Hz)
+        fps_video = 51.491       # Video FPS
 
         # --- Downsampling con SciPy ---
         force_resampled = signal.resample(df_force["Force_right"], num_frames)
@@ -346,9 +430,9 @@ def process_force():
 
         df_resampled.to_csv(output_path, index=False)
 
-        # --- Calcular elongación en el backend ---
+        # Elongation calculation in backend
         if {"distal_X", "distal_y", "proximal_x", "proximal_y"}.issubset(df_coords.columns):
-            distal_x = df_coords["distal_y"].values  # corrección por orden cambiado
+            distal_x = df_coords["distal_y"].values 
             distal_y_fixed = df_coords["distal_X"].values
             proximal_x_fixed = df_coords["proximal_y"].values
             proximal_y_fixed = df_coords["proximal_x"].values
@@ -358,8 +442,8 @@ def process_force():
                 (distal_y_fixed - proximal_y_fixed) ** 2
             )
 
-            # Conversión px → mm
-            # Recuperar factor guardado localmente en JS (o dejar fijo)
+            # Conversion px → mm
+            # Retrieve locally saved in factor (or set it fixed)
             factor_path = os.path.join(data_dir, "conversion_factor.txt")
             if os.path.exists(factor_path):
                 with open(factor_path, "r") as f:
@@ -369,7 +453,7 @@ def process_force():
 
             elong_mm = elong_px / factor
         else:
-            print("⚠️ No se pudieron encontrar columnas de coordenadas para calcular elongación.")
+            print("Could not find coords columns to calculate elongation")
             elong_mm = None
         
         if elong_mm is not None:
@@ -393,11 +477,11 @@ def process_force():
             print(f"   → Positive = Force ramp is ahead of elongation")
             print(f"   → Negative = Elongation is ahead of force ramp")
         else:
-            print("⚠️ No se pudo calcular elongación para correlación cruzada.")
+            print("Could not calculate elongation for cross correlation")
 
-        # --- Respuesta JSON al front-end ---
+        # JSON output to the frontend
         return jsonify({
-            "message": f"✅ Force ramp processed successfully using {'Kalman' if use_kalman else 'insertion'} coordinates",
+            "message": f"Force ramp processed successfully using {'Kalman' if use_kalman else 'insertion'} coordinates",
             "output_file": "static/data/force_ramp_processed.csv",
             "frames": int(num_frames),
             "cross_correlation": {
@@ -410,6 +494,7 @@ def process_force():
         print(f"❌ Error processing force ramp: {e}")
         return jsonify({"error": str(e)}), 500
 
+# Update Kalman-corrected distal and proximal coordinates after manual UI adjustments.
 @app.route('/update_coords', methods=['POST'])
 def update_coords():
     try:
@@ -424,7 +509,7 @@ def update_coords():
         backup_distal = os.path.join(data_dir, "kalman_coords_distal_backup.csv")
         backup_proximal = os.path.join(data_dir, "kalman_coords_proximal_backup.csv")
 
-        # ---------- 1) Crear backup si NO existe ----------
+        # Create backup if it does not exists
         if not os.path.exists(backup_distal):
             shutil.copy2(distal_path, backup_distal)
             print("📦 Backup distal creado.")
@@ -433,22 +518,22 @@ def update_coords():
             shutil.copy2(proximal_path, backup_proximal)
             print("📦 Backup proximal creado.")
 
-        # ---------- 2) Cargar archivos originales ----------
+        # Load original files
         df_distal = pd.read_csv(distal_path)
         df_proximal = pd.read_csv(proximal_path)
 
-        # Columnas a actualizar (las últimas dos)
+        # Update columns (last 2)
         distal_x_col = df_distal.columns[-2]
         distal_y_col = df_distal.columns[-1]
         proximal_x_col = df_proximal.columns[-2]
         proximal_y_col = df_proximal.columns[-1]
 
-        # ---------- 3) Actualizar SOLO las columnas Kalman ----------
+        # Update ONLY Kalman columns
         for i, c in enumerate(coords):
 
-            # UI → CSV (invertir)
-            distal_csv_x = float(c["distal"]["y"])  # vertical
-            distal_csv_y = float(c["distal"]["x"])  # horizontal
+            # UI → CSV 
+            distal_csv_x = float(c["distal"]["y"])  
+            distal_csv_y = float(c["distal"]["x"])  
 
             proximal_csv_x = float(c["proximal"]["y"])
             proximal_csv_y = float(c["proximal"]["x"])
@@ -459,7 +544,7 @@ def update_coords():
             df_proximal.loc[i, proximal_x_col] = proximal_csv_x
             df_proximal.loc[i, proximal_y_col] = proximal_csv_y
 
-        # ---------- 4) Guardar ----------
+        # Save
         df_distal.to_csv(distal_path, index=False)
         df_proximal.to_csv(proximal_path, index=False)
 
@@ -471,16 +556,13 @@ def update_coords():
         return jsonify({"message": str(e)}), 500
 
 
-
-# === Serve clean frames directly from memory cache ===
-CLEAN_FRAMES_CACHE = None
-
+# Serve a clean preprocessed frame directly from the cached NPZ file (fast retrieval).
 @app.route('/clean_frame/<int:index>')
 def serve_clean_frame(index):
     global CLEAN_FRAMES_CACHE
 
     try:
-        # 1️⃣ Cargar cache si no está en memoria
+        # Load cache if not in memory
         if CLEAN_FRAMES_CACHE is None:
             cache_path = os.path.join(
                 os.path.dirname(__file__),
@@ -495,7 +577,6 @@ def serve_clean_frame(index):
 
             data = np.load(cache_path, allow_pickle=True)
 
-            # Algunos npz usan 'arr_0' en lugar de 'frames'
             if 'frames' in data:
                 CLEAN_FRAMES_CACHE = data['frames']
             elif 'arr_0' in data:
@@ -505,11 +586,11 @@ def serve_clean_frame(index):
 
             print(f"[UI] Loaded {len(CLEAN_FRAMES_CACHE)} clean frames into memory cache")
 
-        # 2️⃣ Validar índice
+        # Index validation
         if index < 0 or index >= len(CLEAN_FRAMES_CACHE):
             return Response("Invalid frame index", status=400)
 
-        # 3️⃣ Obtener los bytes de forma segura
+        # Safely obtention of bytes
         frame_data = CLEAN_FRAMES_CACHE[index]
         if isinstance(frame_data, np.ndarray):
             try:
@@ -519,13 +600,14 @@ def serve_clean_frame(index):
         else:
             frame_bytes = frame_data
 
-        # 4️⃣ Devolver la imagen
+        # Return image
         return send_file(io.BytesIO(frame_bytes), mimetype='image/png')
 
     except Exception as e:
         print(f"❌ Error serving clean frame {index}: {e}")
         return Response(f"Internal error: {e}", status=500)
 
+# Restore Kalman coordinate CSVs back to their original backup versions.
 @app.route('/reset_coords', methods=['POST'])
 def reset_coords():
     try:
@@ -547,6 +629,38 @@ def reset_coords():
         print(f"❌ Error resetting coords: {e}")
         return jsonify({'message': f'Error: {str(e)}'}), 500
     
+# Return how many clean frames are available in the cache.
+@app.route('/clean_frame_count')
+def clean_frame_count():
+    global CLEAN_FRAMES_CACHE
+
+    try:
+        #Load cache if it's not loaded yet
+        if CLEAN_FRAMES_CACHE is None:
+            cache_path = os.path.join(
+                os.path.dirname(__file__),
+                '..',
+                'TransUNet',
+                'outputs',
+                '_clean_frames_cache.npz'
+            )
+            if not os.path.exists(cache_path):
+                return jsonify({"count": 0})  
+
+            data = np.load(cache_path, allow_pickle=True)
+            if 'frames' in data:
+                CLEAN_FRAMES_CACHE = data['frames']
+            elif 'arr_0' in data:
+                CLEAN_FRAMES_CACHE = data['arr_0']
+            else:
+                return jsonify({"count": 0})
+
+        return jsonify({"count": len(CLEAN_FRAMES_CACHE)})
+
+    except Exception as e:
+        print("❌ Error in /clean_frame_count:", e)
+        return jsonify({"count": 0})
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

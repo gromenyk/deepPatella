@@ -1,3 +1,36 @@
+"""
+dataset_synapse.py
+
+This module defines the dataset class used for loading NPZ samples during
+training and validation of the TransUNet model. It is only used for training,
+and it is not used by the end user of deepPatella.
+
+Main components:
+    - Data augmentation utilities (random rotation, flipping, zooming)
+    - RandomGenerator: applies augmentations and resizing to 224x224
+    - Synapse_dataset (torch.utils.data.Dataset):
+        * Loads NPZ files containing:
+            - normalized ultrasound frame (image)
+            - segmentation mask (label)
+            - insertion coordinates (coords) for supervised centroid training
+        * Automates the train/val split based on train.txt
+        * Supports test_vol mode for inference-only evaluation
+
+
+Training data format expected (.npz):
+    {
+        "image": (H,W) or (H,W,3)  — preprocessed 512x512 frame
+        "label": (H,W)            — distal/proximal heatmaps
+        "insertion_coords": (2,2) — manual annotations (optional during test)
+    }
+
+Notes:
+    - All images are resized to 224x224 for TransUNet.
+    - During training, frames can be auto-generated from a video using
+      `pipeline.video_input.frame_split` if the folder is initially empty.
+"""
+
+
 import os
 import random
 import h5py
