@@ -1,10 +1,9 @@
-# Base image of Ubuntu 20.04 with CUDA 12.1
+# Base image
 FROM nvidia/cuda:12.1.0-runtime-ubuntu20.04
 
-# Avoid interactive questions during installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update and install necessary dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     python3.8 \
     python3-pip \
@@ -14,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Directly install dependencies
+# Install python dependencies
 RUN pip3 install --no-cache-dir \
     torch==2.0.0 \
     torchvision==0.15.0 \
@@ -35,15 +34,17 @@ RUN pip3 install --no-cache-dir \
     flask==3.0.3 \
     openpyxl==3.1.2
 
-# CUDA Environment variables configuration 
-ENV PATH=/usr/local/cuda-12.1/bin${PATH:+:${PATH}}
-ENV LD_LIBRARY_PATH=/usr/local/cuda-12.1/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-
-# Workspace configuration
+# Copy full project (but NOT the model)
 WORKDIR /workspace
+COPY . /workspace
 
-# Open interactive shell
-CMD ["bash"]
+# Expose UI port
+EXPOSE 5000
+
+# Start the GUI
+CMD ["python3", "GUI/app.py"]
+
+
 
 
 
