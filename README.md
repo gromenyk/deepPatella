@@ -27,31 +27,59 @@ https://osf.io/chf4m/files
 There you will see three files:
 
 - epoch_4.pth: this is the pre-trained model, that will allow you to run the inference.
-- example_video: this is a demo video for in case you want to try the inference. This specific video does not have a force ramp
+- example_video: this is a demo video for in case you want to try the inference. 
 - example_force_ramp: this is an Excel sheet that contains the force ramp related to the example video. You can upload it directly on the UI for the tendon stiffness calculation.
 
 If you have your own data, then you don't need to download (of course) the example video and force ramp. 
 
 ### Clone the deepPatella repository
 
-Open a terminal (CMD, PowerShell, or your IDE terminal):
+Open a Powershell terminal (type in your searchbar 'powershell' and you will find it)
 
+Then copy the following command and hit enter. This will clone the deepPatella repository to your computer.
 ```
 git clone https://github.com/gromenyk/deepPatella.git
+```
+
+Then, enter the deepPatella folder by copying and pasting the following command:
+```
 cd deepPatella
 ```
 
 ### Copy the epoch_4.pth to the required folder.
 
-Copy the epoch_4.pth file to:
+Fow Windows users:
 
-```
-deepPatella/model/TU_Synapse224/TU_pretrain_R50-ViT-B_16_skip3_epo5_bs12_lr0.005_224/
-```
+Open File Explorer on Windows and navigate to:
+
+This PC
+ → Windows (C:)
+   → Users
+     → <your user name>
+       → deepPatella
+         → model
+           → TU_Synapse224
+             → TU_pretrain_R50-ViT-B_16_skip3_epo5_bs12_lr0.005_224
+
+Once inside that folder, copy the file epoch_4.pth into it.
+
+For macOS users:
+
+Open Finder and go to:
+
+Macintosh HD
+ → Users
+   → <your user name>
+     → deepPatella
+       → model
+         → TU_Synapse224
+           → TU_pretrain_R50-ViT-B_16_skip3_epo5_bs12_lr0.005_224
+
+Then copy epoch_4.pth into that folder.
 
 ### Build the Docker image
 
-Go back to the cmd and from inside the deepPatella folder:
+Go back to the Command Prompt and from inside the deepPatella folder:
 
 ```
 docker build -t deeppatella .
@@ -59,18 +87,24 @@ docker build -t deeppatella .
 
 ### Run deepPatella (mounting the model folder)
 
-macOS/Linux:
+For Windows users (Windows Powershell):
 
 ```
-docker run --gpus all -p 5000:5000 \
-    -v "$(pwd)/model":"/workspace/model" \
-    deeppatella
+docker run --gpus all --shm-size=8gb -p 5000:5000 -it -v "${PWD}:/workspace" deeppatella
 ```
 
-Windows Powershell
+for macOS/Linux users:
 
 ```
-docker run --gpus all -p 5000:5000 `
-    -v "${PWD}\model":"/workspace/model" `
-    deeppatella
+docker run --gpus all --shm-size=8gb -p 5000:5000 -it -v "$(pwd)":/workspace deeppatella
 ```
+
+### Now it's time to launch the app:
+
+Copy and paste the following commands:
+
+```
+cd GUI
+python3.8 app.py
+```
+
