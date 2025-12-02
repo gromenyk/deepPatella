@@ -113,7 +113,8 @@ python3.8 app.py
 
 Press CTRL + left click to open the User interface on your web browser
 
-![Screenshot](docs/screenshot.png)
+![Screenshot](docs/screenshots/open_UI.png)
 
 
 ## That's it, now you can enjoy estimating patellar tendon stiffness
+
