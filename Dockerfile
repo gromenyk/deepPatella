@@ -32,7 +32,7 @@ RUN pip3 install --no-cache-dir \
     pandas==2.0.3 \
     opencv-python-headless==4.10.0.84 \
     filterpy==1.4.5 \
-    flask==3.0.3 \
+    flask==3.0.3 
 
 # Ensure openpyxl is correctly installed
 RUN pip3 install --no-cache-dir --upgrade --force-reinstall openpyxl==3.1.5
@@ -46,6 +46,7 @@ WORKDIR /workspace
 
 # Open interactive shell
 CMD ["bash"]
+
 
 
 
