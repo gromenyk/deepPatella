@@ -6,9 +6,9 @@ From these probability maps, the predicted coordinates of the tendon insertions 
 
 deepPatella includes a user interface that allows users to load a raw ultrasound video, run the inference model, compute the baseline tendon length (at rest), upload the force-ramp data, generate plots, and automatically obtain tendon stiffness (N/mm) and normalized tendon stiffness (N).
 
-## How to use
+## Setting up
 
-In order to make it run, please follow the steps detailed next:
+In order to set deepPatella up, please follow the steps detailed next:
 
 ### Install Docker (in case you don't have it already installed)
 
@@ -85,15 +85,17 @@ Go back to the Command Prompt and from inside the deepPatella folder:
 docker build -t deeppatella .
 ```
 
-### Run deepPatella (mounting the model folder)
+## Run deepPatella (mounting the model folder)
 
-For Windows users (Windows Powershell):
+### Run the Docker container and mount the volumen:
+
+For Windows users (Windows Powershell): copy and past the following command
 
 ```
 docker run --gpus all --shm-size=8gb -p 5000:5000 -it -v "${PWD}:/workspace" deeppatella
 ```
 
-for macOS/Linux users:
+for macOS/Linux users: copy and past the following command
 
 ```
 docker run --gpus all --shm-size=8gb -p 5000:5000 -it -v "$(pwd)":/workspace deeppatella
@@ -105,8 +107,13 @@ Copy and paste the following commands:
 
 ```
 cd GUI
-pip install openpyxl
 python3.8 app.py
 ```
+### Open the user interface
+
+Press CTRL + left click to open the User interface on your web browser
+
+![Screenshot](docs/screenshot.png)
 
 
+## That's it, now you can enjoy estimating patellar tendon stiffness
