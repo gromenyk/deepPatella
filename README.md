@@ -105,6 +105,8 @@ Copy and paste the following commands:
 
 ```
 cd GUI
+pip install openpyxl
 python3.8 app.py
 ```
+
 
