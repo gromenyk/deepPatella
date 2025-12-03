@@ -72,9 +72,33 @@
                         <label for="baseline-mm">Tendon elongation at rest:</label>
                         <input type="text" id="baseline-mm" readonly value="-">
                     </div>
+                    <p>Please choose tendon elongation source: </p>
+                    <div class="processing-panel">
+                        <label>
+                            <input type="radio" name="elongation-source" value="kalman" checked>
+                            deepPatella inference tendon elongation
+                        </label>
+                        <span class="info-icon" 
+                            data-tooltip="Uses the Kalman-corrected coordinates predicted by DeepPatella to compute tendon elongation."></span>
+                    </div>
+                    <div class="processing-panel">
+                        <label>
+                            <input type="radio" name="elongation-source" value="external">
+                            Upload external tendon elongation:
+                        </label>
+
+                        <input type="file" id="upload-tendon-elongation" accept=".xlsx, .csv">
+                        <input type="button" id="upload-tendon-elongation-btn" value="Upload">
+
+                        <span class="info-icon" 
+                            data-tooltip="Upload your own elongation file (.csv or .xlsx). DeepPatella will use this instead of the inferred elongation. IMPORTANT: Upload CSV with tendon elongation in pixels (px).
+deepPatella will convert them to millimeters using the pixel-to-mm factor computed in the Baseline module. "></span>
+                    </div>
                     <div class="processing-panel">
                         <label for="tendon-elongation-processing">Process tendon elongation:</label>
                         <input type="button" id="tendon-elongation-processing" value="Process Tendon Elongation">
+                        <span class="info-icon" 
+                            data-tooltip="Processes tendon elongation using the selected source (Kalman inference or external file)."></span>
                     </div>
                     <div class="processing-panel">
                         <label for="upload-force-ramp">Upload force ramp file:</label>

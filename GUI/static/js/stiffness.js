@@ -54,15 +54,64 @@ window.addEventListener("load", () => {
 
     // Elongation processing button
     const processElongationBtn = document.getElementById("tendon-elongation-processing");
+
     processElongationBtn.addEventListener("click", async () => {
         try {
-            const data = await loadAndProcessCSV();
-            plotElongation(data);
+            // Read which source was selected (kalman/external)
+            const source = document.querySelector("input[name='elongation-source']:checked").value;
+
+            let data;
+
+            if (source === "kalman") {
+                console.log("📌 Using Kalman-corrected DeepPatella elongation");
+                data = await loadAndProcessCSV(); 
+            } else {
+                console.log("📌 Using EXTERNAL elongation file");
+                data = await loadAndProcessCSV_External(); 
+            }
+
+            window.elongationData = data;     
+            plotElongation(data);             
+
         } catch (error) {
             console.error("❌ Error processing tendon elongation:", error);
-            alert("Error processing tendon elongation. Please check the CSV file.");
+            alert("Error processing tendon elongation. Check console for details.");
         }
     });
+
+
+    // Upload external tendon elongation
+    const uploadExtElongBtn = document.getElementById("upload-tendon-elongation-btn");
+    const uploadExtElongInput = document.getElementById("upload-tendon-elongation");
+
+    if (uploadExtElongBtn && uploadExtElongInput) {
+        uploadExtElongBtn.addEventListener("click", async () => {
+            const file = uploadExtElongInput.files[0];
+            if (!file) {
+                alert("Please select a CSV or XLSX file first.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const response = await fetch("/upload_external_elongation", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || "Upload failed");
+
+                console.log("✅ External elongation uploaded:", result);
+                alert("External elongation uploaded successfully.");
+            } catch (error) {
+                console.error("❌ Error uploading external elongation:", error);
+                alert("Error uploading external elongation. Check console for details.");
+            }
+        });
+    }
 
     // Force ramp processing button
     const processForceBtn = document.getElementById("process-force-btn");
@@ -140,6 +189,33 @@ async function loadAndProcessCSV() {
 
     return data;
 }
+
+// Read external elongation CSV or XLSX that user uploaded
+async function loadAndProcessCSV_External() {
+    try {
+        const response = await fetch("/static/data/external_elongation.csv");
+        const text = await response.text();
+
+        const rows = text.trim().split("\n");
+        rows.shift(); // remove header
+
+        const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor")) || 1;
+
+        const data = rows.map((row, i) => {
+            const [frame, elong_px] = row.split(",").map(Number);
+            const elong_mm = elong_px / factor;
+            return { frame, elongation_mm: elong_mm };
+        });
+
+        console.log("✅ External elongation loaded:", data);
+        return data;
+
+    } catch (error) {
+        console.error("❌ Error loading external elongation file:", error);
+        throw error;
+    }
+}
+
 
 // Tendon length calculation and relative elongation (using Kalman coords)
 async function computeTendonElongation() {

@@ -662,5 +662,32 @@ def clean_frame_count():
         return jsonify({"count": 0})
 
 
+# Upload external tendon elongation (CSV or XLSX)
+@app.route('/upload_external_elongation', methods=['POST'])
+def upload_external_elongation():
+    if 'file' not in request.files:
+        return jsonify({'message': 'No file part in request'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'message': 'No file selected'}), 400
+
+    # Valid extensions
+    allowed_ext = ('.csv', '.xlsx')
+    if not file.filename.lower().endswith(allowed_ext):
+        return jsonify({'message': 'Invalid file type. Please upload .csv or .xlsx'}), 400
+
+    # Save inside GUI/static/data
+    save_dir = os.path.join(app.static_folder, 'data')
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Standardized filename
+    save_path = os.path.join(save_dir, 'external_elongation' + os.path.splitext(file.filename)[1])
+    file.save(save_path)
+
+    print(f"✅ External elongation file saved at: {save_path}")
+    return jsonify({'message': 'External elongation uploaded successfully!', 'filename': save_path}), 200
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -751,6 +751,10 @@ menu li.active a {
     box-shadow: 0 0 8px rgba(0,0,0,0.3);
 }
 
+.data-panel p {
+    font-weight: bold;
+}
+
 .plot-panel {
     flex: 3.9;
     padding: 20px;
@@ -779,6 +783,7 @@ menu li.active a {
 
 .processing-panel {
     margin-bottom: 20px;
+    align-items: center;;
 }
 
 #tendon-elongation-processing {
@@ -792,6 +797,43 @@ menu li.active a {
     cursor: pointer;
     transform: scale(1.03);
     transition: all ease-in-out;
+}
+
+.info-icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: #3498db;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    position: relative;
+}
+
+.info-icon::before {
+    content: "i";     
+}
+
+.info-icon:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 50%;
+    left: 22px;
+    transform: translateY(-50%);
+    background: #333;
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 6px;
+    max-width: 260px;
+    width: 200px;
+    font-size: 12px;
+    z-index: 999;
+    line-height: 1.4em;
+    pointer-events: none;
 }
 
 #upload-force-ramp {
@@ -808,6 +850,19 @@ menu li.active a {
 }
 
 #upload-force-btn {
+    background-color: #46505A;
+    color: white;
+    font-size: 14px;
+    padding: 3px 10px;
+}
+
+#upload-tendon-elongation {
+    background-color: #46505A;
+    color: white;
+    font-size: 14px;
+}
+
+#upload-tendon-elongation-btn {
     background-color: #46505A;
     color: white;
     font-size: 14px;
