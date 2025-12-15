@@ -33,6 +33,19 @@
 //   - The module stores intermediate regression results on window.* for reuse.
 //
 
+// === Chart.js Black Background Plugin for PDF Export ===
+Chart.register({
+    id: "custom_canvas_background_color",
+    beforeDraw: (chart) => {
+        const ctx = chart.canvas.getContext("2d");
+        ctx.save();
+        ctx.globalCompositeOperation = "destination-over";
+        ctx.fillStyle = "#000"; // Black background
+        ctx.fillRect(0, 0, chart.width, chart.height);
+        ctx.restore();
+    }
+});
+
 
 let chartElongation = null;
 let chartHysteresis = null;
@@ -903,6 +916,7 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
         // Show in UI
         const stiffnessSpan = document.getElementById("stiffness-value");
         stiffnessSpan.textContent = stiffness.toFixed(2);
+        localStorage.setItem("deepPatella_stiffness", stiffness.toFixed(2));
 
         // Calculate normalized stiffness (N)
         const baselineValue = parseFloat(localStorage.getItem("deepPatella_baseline_mm"));
@@ -910,6 +924,7 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
             const normalizedStiffness = stiffness * baselineValue;
             const normalizedSpan = document.getElementById("normalized-stiffness-value");
             if (normalizedSpan) normalizedSpan.textContent = normalizedStiffness.toFixed(2);
+            localStorage.setItem("deepPatella_stiffness_normalized", normalizedStiffness.toFixed(2));
             console.log(`Normalized stiffness: ${normalizedStiffness.toFixed(2)} N`);
         } else {
             console.warn("Baseline tendon length missing or invalid for normalized stiffness.");
@@ -919,5 +934,64 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
     } catch (error) {
         console.error("❌ Error calculating stiffness:", error);
         alert("Error calculating tendon stiffness. Check console for details.");
+    }
+});
+
+// === Export PDF Report ===
+document.getElementById("export-pdf-btn").addEventListener("click", async () => {
+    try {
+        const baseline = localStorage.getItem("deepPatella_baseline_mm") || "–";
+        const factor = localStorage.getItem("deepPatella_conversion_factor") || "–";
+        const stiffness = localStorage.getItem("deepPatella_stiffness") || "–";
+        const normalized = localStorage.getItem("deepPatella_stiffness_normalized") || "–";
+        const videoName = localStorage.getItem("deepPatella_last_video") || "–";
+        const timestamp = new Date().toLocaleString();
+
+        // Convertir gráficos a imágenes base64
+        const chart1 = document.getElementById("chart-elongation")?.toDataURL() || null;
+        const chart2 = document.getElementById("chart-hysteresis")?.toDataURL() || null;
+        const chart3 = document.getElementById("chart-force-elongation-tf0080")?.toDataURL() || null;
+
+        const docDefinition = {
+            content: [
+                { text: "DeepPatella – Tendon Stiffness Report", style: "header" },
+                { text: `Generated on: ${timestamp}`, margin: [0, 0, 0, 20] },
+
+                { text: "Input Parameters", style: "subheader" },
+                {
+                    ul: [
+                        `Video file: ${videoName}`,
+                        `Baseline tendon length (mm): ${baseline}`,
+                        `Pixel–mm conversion factor: ${factor}`,
+                    ]
+                },
+
+                { text: "\nResults", style: "subheader" },
+                {
+                    ul: [
+                        `Stiffness (N/mm): ${stiffness}`,
+                        `Normalized stiffness (N): ${normalized}`
+                    ]
+                },
+
+                { text: "\nPlots", style: "subheader" },
+                chart1 ? { image: chart1, width: 450, margin: [0,10,0,10] } : "",
+                chart2 ? { image: chart2, width: 450, margin: [0,10,0,10] } : "",
+                chart3 ? { image: chart3, width: 450, margin: [0,10,0,10] } : "",
+
+                { text: "\nDeepPatella – Automated tendon stiffness estimation", style: "footer" }
+            ],
+            styles: {
+                header: { fontSize: 18, bold: true },
+                subheader: { fontSize: 14, bold: true, margin: [0, 10, 0, 5] },
+                footer: { fontSize: 8, italics: true, color: "gray" }
+            }
+        };
+
+        pdfMake.createPdf(docDefinition).download("deepPatella_report.pdf");
+
+    } catch (err) {
+        console.error("❌ PDF error:", err);
+        alert("Error exporting PDF");
     }
 });
