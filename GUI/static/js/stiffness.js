@@ -33,6 +33,19 @@
 //   - The module stores intermediate regression results on window.* for reuse.
 //
 
+// === Chart.js Black Background Plugin for PDF Export ===
+Chart.register({
+    id: "custom_canvas_background_color",
+    beforeDraw: (chart) => {
+        const ctx = chart.canvas.getContext("2d");
+        ctx.save();
+        ctx.globalCompositeOperation = "destination-over";
+        ctx.fillStyle = "#000"; // Black background
+        ctx.fillRect(0, 0, chart.width, chart.height);
+        ctx.restore();
+    }
+});
+
 
 let chartElongation = null;
 let chartHysteresis = null;
@@ -54,15 +67,64 @@ window.addEventListener("load", () => {
 
     // Elongation processing button
     const processElongationBtn = document.getElementById("tendon-elongation-processing");
+
     processElongationBtn.addEventListener("click", async () => {
         try {
-            const data = await loadAndProcessCSV();
-            plotElongation(data);
+            // Read which source was selected (kalman/external)
+            const source = document.querySelector("input[name='elongation-source']:checked").value;
+
+            let data;
+
+            if (source === "kalman") {
+                console.log("📌 Using Kalman-corrected DeepPatella elongation");
+                data = await loadAndProcessCSV(); 
+            } else {
+                console.log("📌 Using EXTERNAL elongation file");
+                data = await loadAndProcessCSV_External(); 
+            }
+
+            window.elongationData = data;     
+            plotElongation(data);             
+
         } catch (error) {
             console.error("❌ Error processing tendon elongation:", error);
-            alert("Error processing tendon elongation. Please check the CSV file.");
+            alert("Error processing tendon elongation. Check console for details.");
         }
     });
+
+
+    // Upload external tendon elongation
+    const uploadExtElongBtn = document.getElementById("upload-tendon-elongation-btn");
+    const uploadExtElongInput = document.getElementById("upload-tendon-elongation");
+
+    if (uploadExtElongBtn && uploadExtElongInput) {
+        uploadExtElongBtn.addEventListener("click", async () => {
+            const file = uploadExtElongInput.files[0];
+            if (!file) {
+                alert("Please select a CSV or XLSX file first.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const response = await fetch("/upload_external_elongation", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || "Upload failed");
+
+                console.log("✅ External elongation uploaded:", result);
+                alert("External elongation uploaded successfully.");
+            } catch (error) {
+                console.error("❌ Error uploading external elongation:", error);
+                alert("Error uploading external elongation. Check console for details.");
+            }
+        });
+    }
 
     // Force ramp processing button
     const processForceBtn = document.getElementById("process-force-btn");
@@ -140,6 +202,33 @@ async function loadAndProcessCSV() {
 
     return data;
 }
+
+// Read external elongation CSV or XLSX that user uploaded
+async function loadAndProcessCSV_External() {
+    try {
+        const response = await fetch("/static/data/external_elongation.csv");
+        const text = await response.text();
+
+        const rows = text.trim().split("\n");
+        rows.shift(); // remove header
+
+        const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor")) || 1;
+
+        const data = rows.map((row, i) => {
+            const [frame, elong_px] = row.split(",").map(Number);
+            const elong_mm = elong_px / factor;
+            return { frame, elongation_mm: elong_mm };
+        });
+
+        console.log("✅ External elongation loaded:", data);
+        return data;
+
+    } catch (error) {
+        console.error("❌ Error loading external elongation file:", error);
+        throw error;
+    }
+}
+
 
 // Tendon length calculation and relative elongation (using Kalman coords)
 async function computeTendonElongation() {
@@ -827,6 +916,7 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
         // Show in UI
         const stiffnessSpan = document.getElementById("stiffness-value");
         stiffnessSpan.textContent = stiffness.toFixed(2);
+        localStorage.setItem("deepPatella_stiffness", stiffness.toFixed(2));
 
         // Calculate normalized stiffness (N)
         const baselineValue = parseFloat(localStorage.getItem("deepPatella_baseline_mm"));
@@ -834,6 +924,7 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
             const normalizedStiffness = stiffness * baselineValue;
             const normalizedSpan = document.getElementById("normalized-stiffness-value");
             if (normalizedSpan) normalizedSpan.textContent = normalizedStiffness.toFixed(2);
+            localStorage.setItem("deepPatella_stiffness_normalized", normalizedStiffness.toFixed(2));
             console.log(`Normalized stiffness: ${normalizedStiffness.toFixed(2)} N`);
         } else {
             console.warn("Baseline tendon length missing or invalid for normalized stiffness.");
@@ -843,5 +934,64 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
     } catch (error) {
         console.error("❌ Error calculating stiffness:", error);
         alert("Error calculating tendon stiffness. Check console for details.");
+    }
+});
+
+// === Export PDF Report ===
+document.getElementById("export-pdf-btn").addEventListener("click", async () => {
+    try {
+        const baseline = localStorage.getItem("deepPatella_baseline_mm") || "–";
+        const factor = localStorage.getItem("deepPatella_conversion_factor") || "–";
+        const stiffness = localStorage.getItem("deepPatella_stiffness") || "–";
+        const normalized = localStorage.getItem("deepPatella_stiffness_normalized") || "–";
+        const videoName = localStorage.getItem("deepPatella_last_video") || "–";
+        const timestamp = new Date().toLocaleString();
+
+        // Convertir gráficos a imágenes base64
+        const chart1 = document.getElementById("chart-elongation")?.toDataURL() || null;
+        const chart2 = document.getElementById("chart-hysteresis")?.toDataURL() || null;
+        const chart3 = document.getElementById("chart-force-elongation-tf0080")?.toDataURL() || null;
+
+        const docDefinition = {
+            content: [
+                { text: "DeepPatella – Tendon Stiffness Report", style: "header" },
+                { text: `Generated on: ${timestamp}`, margin: [0, 0, 0, 20] },
+
+                { text: "Input Parameters", style: "subheader" },
+                {
+                    ul: [
+                        `Video file: ${videoName}`,
+                        `Baseline tendon length (mm): ${baseline}`,
+                        `Pixel–mm conversion factor: ${factor}`,
+                    ]
+                },
+
+                { text: "\nResults", style: "subheader" },
+                {
+                    ul: [
+                        `Stiffness (N/mm): ${stiffness}`,
+                        `Normalized stiffness (N): ${normalized}`
+                    ]
+                },
+
+                { text: "\nPlots", style: "subheader" },
+                chart1 ? { image: chart1, width: 450, margin: [0,10,0,10] } : "",
+                chart2 ? { image: chart2, width: 450, margin: [0,10,0,10] } : "",
+                chart3 ? { image: chart3, width: 450, margin: [0,10,0,10] } : "",
+
+                { text: "\nDeepPatella – Automated tendon stiffness estimation", style: "footer" }
+            ],
+            styles: {
+                header: { fontSize: 18, bold: true },
+                subheader: { fontSize: 14, bold: true, margin: [0, 10, 0, 5] },
+                footer: { fontSize: 8, italics: true, color: "gray" }
+            }
+        };
+
+        pdfMake.createPdf(docDefinition).download("deepPatella_report.pdf");
+
+    } catch (err) {
+        console.error("❌ PDF error:", err);
+        alert("Error exporting PDF");
     }
 });
