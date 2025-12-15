@@ -33,7 +33,8 @@ RUN pip3 install --no-cache-dir \
     opencv-python-headless==4.10.0.84 \
     filterpy==1.4.5 \
     flask==3.0.3 \
-    openpyxl==3.1.5
+    openpyxl==3.1.5 \
+    reportlab==4.4.6
 
 # CUDA Environment variables configuration 
 ENV PATH=/usr/local/cuda-12.1/bin${PATH:+:${PATH}}
@@ -44,6 +45,7 @@ WORKDIR /workspace
 
 # Open interactive shell
 CMD ["bash"]
+
 
 
 
