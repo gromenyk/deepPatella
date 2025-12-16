@@ -425,6 +425,8 @@ async function plotForceRamp() {
         data.push({ frame, tendonForce });
     }
 
+    window.forceData = data;
+
     const frames = data.map(d => d.frame);
     const forces = data.map(d => d.tendonForce);
     const ctx = document.getElementById("chart-elongation").getContext("2d");
@@ -720,7 +722,7 @@ document.getElementById("generate-force-strain-tf0-tf80").addEventListener("clic
 
     // Make sure elongation and force have the same length
     const n = Math.min(window.forceData.length, window.elongationData.length);
-    const force = window.forceData.slice(0, n);
+    const force = window.forceData.slice(0, n).map(d => d.tendonForce);
     const elongation = window.elongationData.slice(0, n);
 
     // Calculate TFmax and determine range 50-80%
@@ -1080,7 +1082,7 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
     }
 });
 
-// === Export PDF Report ===
+// Export PDF Report
 document.getElementById("export-pdf-btn").addEventListener("click", async () => {
     try {
         const source = document.querySelector(
@@ -1144,4 +1146,117 @@ document.getElementById("export-pdf-btn").addEventListener("click", async () => 
         console.error("❌ PDF error:", err);
         alert("Error exporting PDF");
     }
+});
+
+document.getElementById("export-xlsx-btn").addEventListener("click", () => {
+    try {
+        exportResultsToXLSX();
+    } catch (err) {
+        console.error("❌ XLSX export error:", err);
+        alert("Error exporting Excel file. Check console.");
+    }
+});
+
+function exportResultsToXLSX() {
+    if (!window.elongationData || !window.forceData) {
+        alert("Please process elongation and force ramp first.");
+        return;
+    }
+
+    const source = document.querySelector(
+        "input[name='elongation-source']:checked"
+    )?.value || "kalman";
+
+    const baseline =
+        source === "external"
+            ? parseFloat(document.getElementById("baseline-manual-input")?.value)
+            : parseFloat(localStorage.getItem("deepPatella_baseline_mm"));
+
+    const stiffness = parseFloat(localStorage.getItem("deepPatella_stiffness"));
+    const normalized = parseFloat(localStorage.getItem("deepPatella_stiffness_normalized"));
+    const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor"));
+    const momentArm = parseFloat(document.getElementById("moment-arm")?.value) || 0.04;
+    const videoName = localStorage.getItem("deepPatella_last_video") || "–";
+
+    /* =========================
+       Sheet 1 — Metadata
+       ========================= */
+    const metadata = [
+        ["Parameter", "Value"],
+        ["Video file", videoName],
+        ["Elongation source", source],
+        ["Baseline tendon length (mm)", baseline],
+        ["Pixel–mm conversion factor", factor],
+        ["Patellar tendon moment arm (m)", momentArm],
+        ["Stiffness (N/mm)", stiffness],
+        ["Normalized stiffness (N)", normalized],
+        ["Export timestamp", new Date().toISOString()]
+    ];
+
+    const metaSheet = XLSX.utils.aoa_to_sheet(metadata);
+
+    /* =========================
+       Sheet 2 — Time Series
+       ========================= */
+    const n = Math.min(window.elongationData.length, window.forceData.length);
+
+    const timeSeries = [];
+    for (let i = 0; i < n; i++) {
+        timeSeries.push({
+            frame: window.elongationData[i].frame,
+            elongation_mm: window.elongationData[i].elongation_mm,
+            deltaL_mm: isFinite(baseline)
+                ? window.elongationData[i].elongation_mm - baseline
+                : null,
+            force_N: window.forceData[i].tendonForce
+        });
+    }
+
+    const tsSheet = XLSX.utils.json_to_sheet(timeSeries);
+
+    /* =========================
+       Sheet 3 — TF50–TF80
+       ========================= */
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, metaSheet, "Metadata");
+    XLSX.utils.book_append_sheet(wb, tsSheet, "TimeSeries");
+
+    if (window.lastPairedData) {
+        const tfSheet = XLSX.utils.json_to_sheet(
+            window.lastPairedData.map(p => ({
+                deltaL_mm: p.x,
+                force_N: p.y
+            }))
+        );
+        XLSX.utils.book_append_sheet(wb, tfSheet, "TF50_TF80");
+    }
+
+    XLSX.writeFile(wb, "deepPatella_results.xlsx");
+}
+
+
+// Tooltip HTML support (text + image)
+document.querySelectorAll('.info-icon').forEach(icon => {
+    let tooltip;
+
+    icon.addEventListener('mouseenter', () => {
+        const html = icon.dataset.tooltipHtml;
+        if (!html) return;
+
+        tooltip = document.createElement('div');
+        tooltip.className = 'tooltip-box';
+        tooltip.innerHTML = html;
+        document.body.appendChild(tooltip);
+
+        const rect = icon.getBoundingClientRect();
+        tooltip.style.top = `${rect.bottom + 8}px`;
+        tooltip.style.left = `${rect.left}px`;
+    });
+
+    icon.addEventListener('mouseleave', () => {
+        if (tooltip) {
+            tooltip.remove();
+            tooltip = null;
+        }
+    });
 });

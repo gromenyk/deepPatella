@@ -1044,15 +1044,57 @@ menu li.active a {
     cursor: pointer;
     font-size: 1rem;
     font-weight: 600;
-    width: 60%;
+    width: 250px;
     margin-top: 30px;
     transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
 }
 
 #export-pdf-btn:hover {
-    background-color: #ffa64d;
+    background-color: #2D373C;
 }
 
 #export-pdf-btn:active {
     transform: scale(0.97);
+}
+
+#export-xlsx-btn {
+    background-color: #D20537;
+    color: #ffffff;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    width: 250px;
+    margin-top: 30px;
+    transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+}
+
+#export-xlsx-btn:hover {
+    background-color:#2D373C;
+}
+
+#export-xlsx-btn:active {
+    transform: scale(0.97);
+}
+
+.tooltip-box {
+  position: absolute;
+  background: #111;
+  color: #eee;
+  padding: 10px;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+  z-index: 99999;
+  max-width: 320px;
+}
+
+.export-btns {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    margin-top: 20px;
+    align-items: center;
+    justify-content: center;
 }
