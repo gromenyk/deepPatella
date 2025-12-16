@@ -79,7 +79,7 @@
                             deepPatella inference tendon elongation
                         </label>
                         <span class="info-icon" 
-                            data-tooltip="Uses the Kalman-corrected coordinates predicted by DeepPatella to compute tendon elongation."></span>
+                            data-tooltip="Uses the Kalman-corrected coordinates predicted by deepPatella to compute tendon elongation."></span>
                     </div>
                     <div class="processing-panel">
                         <label>
@@ -89,8 +89,31 @@
 
                         <input type="file" id="upload-tendon-elongation" accept=".xlsx, .csv">
                         <input type="button" id="upload-tendon-elongation-btn" value="Upload">
-                        <span class="info-icon" 
-                            data-tooltip="Upload your own elongation file (.csv or .xlsx). DeepPatella will use this instead of the inferred elongation. IMPORTANT: Upload CSV with tendon elongation in mm."></span>
+                        <span
+                            class="info-icon"
+                            data-tooltip-html="
+                                <div style='font-size:12px; line-height:1.4; max-width:300px;'>
+                                <strong>External tendon elongation file</strong><br>
+                                Upload your own elongation file (.csv or .xlsx). DeepPatella will use this
+                                instead of the inferred elongation.<br><br>
+
+                                <strong>IMPORTANT</strong><br>
+                                CSV files must contain tendon elongation in <b>millimeters (mm)</b>
+                                using the following format:
+
+                                <img
+                                    src='{{ url_for('static', filename='img/te_csv_format.png') }}'
+                                    alt='CSV format example'
+                                    style='display:block; width:50%; margin-top:8px;
+                                        border-radius:4px; border:1px solid #333;'
+                                >
+
+                                <div style='font-size:11px; color:#ccc; margin-top:6px;'>
+                                    Required columns: <code>frame</code>, <code>elongation_mm</code>
+                                </div>
+                                </div>
+                            ">
+                        </span>
                     </div>
                     <div class="processing-panel"
                         id="baseline-manual-container"
@@ -115,13 +138,43 @@
                         <label for="tendon-elongation-processing">Process tendon elongation:</label>
                         <input type="button" id="tendon-elongation-processing" value="Process Tendon Elongation">
                         <span class="info-icon" 
-                            data-tooltip="Processes tendon elongation using the selected source (Kalman inference or external file)."></span>
+                            data-tooltip="Processes tendon elongation using the selected source (deepPatella inference or external file)."></span>
                     </div>
                     <div class="processing-panel">
                         <label for="upload-force-ramp">Upload force ramp file:</label>
                         <input type="file" id="upload-force-ramp" accept=".xlsx">
                         <input type="button" id="upload-force-btn" value="Upload">
+
+                        <span
+                        class="info-icon"
+                        data-tooltip-html="
+                            <div style='font-size:12px; line-height:1.4; max-width:300px;'>
+                            <strong>Force ramp file (.xlsx)</strong><br>
+                            Upload the force ramp file. Please note the the following format must be used:<br><br>
+
+                            <img
+                                src='{{ url_for('static', filename='img/force_ramp_format.png') }}'
+                                alt='Force ramp file format example'
+                                style='
+                                display:block;
+                                max-width:200px;
+                                width:30%;
+                                height:auto;
+                                margin:8px auto;
+                                border-radius:4px;
+                                border:1px solid #333;
+                                '
+                            >
+
+                            <div style='font-size:11px; color:#ccc; margin-top:6px;'>
+                                Required columns: <code>frame</code>, <code>torque_Nm</code><br>
+                                File format: <code>.xlsx</code> only
+                            </div>
+                            </div>
+                        ">
+                        </span>
                     </div>
+
                     <!-- <div class="processing-panel">
                         <label for="lower-leg-moment-arm">Lower Leg Moment Arm</label>
                         <input type="number" id="lower-leg-moment-arm" placeholder="Default = 0.28" step="0.01" min="0">
@@ -157,8 +210,13 @@
                             <span id="normalized-stiffness-value">–</span>
                             <span class="stiffness-unit">N</span>
                         </div>
-                        <div class="processing-panel">
-                            <input type="button" id="export-pdf-btn" value="Export PDF Report">
+                        <div class="export-btns">
+                            <div class="processing-panel">
+                                <input type="button" id="export-pdf-btn" value="Export PDF Report">
+                            </div>
+                            <div class="processing-panel">
+                                <input type="button" id="export-xlsx-btn" value="Export Results to Excel">
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -213,10 +271,13 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/regression@2.0.1/dist/regression.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script src="{{ url_for('static', filename='js/stiffness.js') }}"></script>
     <script src="{{ url_for('static', filename='js/reset_ui.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.68/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.68/vfs_fonts.js"></script>
+    
+
 
 </body>
 </html>
