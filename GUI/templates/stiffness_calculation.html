@@ -89,10 +89,27 @@
 
                         <input type="file" id="upload-tendon-elongation" accept=".xlsx, .csv">
                         <input type="button" id="upload-tendon-elongation-btn" value="Upload">
-
                         <span class="info-icon" 
-                            data-tooltip="Upload your own elongation file (.csv or .xlsx). DeepPatella will use this instead of the inferred elongation. IMPORTANT: Upload CSV with tendon elongation in pixels (px).
-deepPatella will convert them to millimeters using the pixel-to-mm factor computed in the Baseline module. "></span>
+                            data-tooltip="Upload your own elongation file (.csv or .xlsx). DeepPatella will use this instead of the inferred elongation. IMPORTANT: Upload CSV with tendon elongation in mm."></span>
+                    </div>
+                    <div class="processing-panel"
+                        id="baseline-manual-container"
+                        style="display: none; text-align: center;">
+
+                        <label for="baseline-manual-input">
+                            Baseline tendon length (mm)
+                            <span class="info-icon"
+                                data-tooltip="If you are using external elongation files, you must manually enter the baseline tendon length here. This value will be used as the reference (ΔL = L − L₀) for the Force–Elongation curve.">
+                            </span>
+                        </label>
+
+                        <input
+                            type="number"
+                            id="baseline-manual-input"
+                            step="0.01"
+                            placeholder="e.g. 41.50"
+                            style="width: 160px; margin-top: 6px;"
+                        />
                     </div>
                     <div class="processing-panel">
                         <label for="tendon-elongation-processing">Process tendon elongation:</label>
