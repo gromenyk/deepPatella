@@ -82,8 +82,6 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from flask import Flask, render_template, request, jsonify, send_from_directory, Response, send_file
 from threading import Thread, Event
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
 from io import BytesIO
 
 app = Flask(__name__)
