@@ -58,6 +58,33 @@ window.addEventListener("load", () => {
     const baselineValue = localStorage.getItem("deepPatella_baseline_mm");
     const baselineInput = document.getElementById("baseline-mm");
 
+    const elongationSourceRadios = document.querySelectorAll(
+        "input[name='elongation-source']"
+    );
+
+    const baselineManualContainer = document.getElementById(
+        "baseline-manual-container"
+    );
+
+    function updateBaselineManualVisibility() {
+        const selectedSource = document.querySelector(
+            "input[name='elongation-source']:checked"
+        )?.value;
+
+        if (selectedSource === "external") {
+            baselineManualContainer.style.display = "block";
+        } else {
+            baselineManualContainer.style.display = "none";
+        }
+    }
+
+    elongationSourceRadios.forEach(radio => {
+        radio.addEventListener("change", updateBaselineManualVisibility);
+    });
+
+    // Run once on page load
+    updateBaselineManualVisibility();
+
     if (baselineValue) {
         baselineInput.value = `${baselineValue} mm`;
     } else {
@@ -90,6 +117,7 @@ window.addEventListener("load", () => {
             console.error("❌ Error processing tendon elongation:", error);
             alert("Error processing tendon elongation. Check console for details.");
         }
+        
     });
 
 
@@ -131,11 +159,24 @@ window.addEventListener("load", () => {
     if (processForceBtn) {
         processForceBtn.addEventListener("click", async () => {
             try {
-                const response = await fetch("/process_force", { method: "POST" });
+                const source = document.querySelector(
+                    "input[name='elongation-source']:checked"
+                )?.value || "kalman";
+
+                const response = await fetch("/process_force", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        elongation_source: source
+                    })
+                });
+
                 const result = await response.json();
                 console.log("✅ Force ramp processed:", result);
 
-                await plotForceRamp(); 
+                await plotForceRamp();
             } catch (error) {
                 console.error("❌ Error processing force ramp:", error);
                 alert("Error processing force ramp. Check console for details.");
@@ -221,12 +262,40 @@ async function loadAndProcessCSV_External() {
         });
 
         console.log("✅ External elongation loaded:", data);
+        window.externalFrames = data.map(d => d.frame);
         return data;
 
     } catch (error) {
         console.error("❌ Error loading external elongation file:", error);
         throw error;
     }
+}
+
+function computeExternalDeltaL() {
+    const source = document.querySelector(
+        "input[name='elongation-source']:checked"
+    )?.value;
+
+    if (source !== "external") {
+        throw new Error("computeExternalDeltaL called in non-external mode");
+    }
+
+    const baselineInput = document.getElementById("baseline-manual-input");
+    const baseline = parseFloat(baselineInput?.value);
+
+    if (isNaN(baseline) || baseline <= 0) {
+        alert("Please enter a valid baseline tendon length (mm) for external elongation.");
+        throw new Error("Invalid external baseline");
+    }
+
+    if (!window.elongationData) {
+        throw new Error("External elongation data not loaded");
+    }
+
+    return window.elongationData.map(d => ({
+        frame: d.frame,
+        deltaL: d.elongation_mm - baseline
+    }));
 }
 
 
@@ -316,16 +385,45 @@ async function plotForceRamp() {
     }
 
     // Calculate force in tendon (torque x lower leg moment arm / tendon moment arm)
-    const data = rows.map(row => {
-        const [frame, torqueNm] = row.split(",").map(Number);
+    const source = document.querySelector(
+        "input[name='elongation-source']:checked"
+    )?.value;
+
+    if (
+        source === "external" &&
+        Array.isArray(window.externalFrames) &&
+        window.externalFrames.length !== rows.length
+    ) {
+        console.warn(
+            "External elongation and force ramp have different lengths. " +
+            "Using the minimum common length."
+        );
+    }
+
+    const n =
+        source === "external" && Array.isArray(window.externalFrames)
+            ? Math.min(rows.length, window.externalFrames.length)
+            : rows.length;
+
+    const data = [];
+
+    for (let i = 0; i < n; i++) {
+        const [, torqueNm] = rows[i].split(",").map(Number);
+
         let tendonForce;
         if (USE_LOWER_LEG_MOMENT_ARM) {
             tendonForce = (torqueNm * lowerLegMomentArm) / momentArm;
         } else {
             tendonForce = torqueNm / momentArm;
         }
-                return { frame, tendonForce };
-    });
+
+        const frame =
+            source === "external" && Array.isArray(window.externalFrames)
+                ? window.externalFrames[i]
+                : i + 1;
+
+        data.push({ frame, tendonForce });
+    }
 
     const frames = data.map(d => d.frame);
     const forces = data.map(d => d.tendonForce);
@@ -486,10 +584,17 @@ async function plotForceElongation() {
 
     const ctx = document.getElementById("chart-hysteresis").getContext("2d");
 
-    const [forceResp, elongationData] = await Promise.all([
-        fetch("/static/data/force_ramp_processed.csv").then(r => r.text()),
-        computeTendonElongation()
-    ]);
+    const forceResp = await fetch("/static/data/force_ramp_processed.csv").then(r => r.text());
+
+    const source = document.querySelector(
+        "input[name='elongation-source']:checked"
+    )?.value;
+
+    const elongationData =
+        source === "external"
+            ? computeExternalDeltaL()
+            : await computeTendonElongation();
+
 
     const lines = forceResp.trim().split("\n");
     lines.shift();
@@ -588,8 +693,26 @@ document.getElementById("generate-force-strain-tf0-tf80").addEventListener("clic
     targetSection.classList.add("active");
 
     // Obtain baseline values (tendon length at rest)
-    const baselineInput = document.getElementById("baseline-mm");
-    const tendonRestLength = parseFloat(baselineInput.value);
+    const source = document.querySelector(
+        "input[name='elongation-source']:checked"
+    )?.value;
+
+    let tendonRestLength;
+
+    if (source === "external") {
+        tendonRestLength = parseFloat(
+            document.getElementById("baseline-manual-input")?.value
+        );
+    } else {
+        tendonRestLength = parseFloat(
+            localStorage.getItem("deepPatella_baseline_mm")
+        );
+    }
+
+    if (isNaN(tendonRestLength) || tendonRestLength <= 0) {
+        alert("Baseline tendon length is missing or invalid.");
+        return;
+    }
     if (isNaN(tendonRestLength) || tendonRestLength <= 0) {
         alert("Baseline tendon length is missing or invalid.");
         return;
@@ -677,10 +800,16 @@ async function plotForceElongation_TF80() {
     const ctx = canvas.getContext("2d");
 
     // Load force and elongation
-    const [forceResp, elongationData] = await Promise.all([
-        fetch("/static/data/force_ramp_processed.csv").then(r => r.text()),
-        computeTendonElongation()
-    ]);
+    const forceResp = await fetch("/static/data/force_ramp_processed.csv").then(r => r.text());
+
+    const source = document.querySelector(
+        "input[name='elongation-source']:checked"
+    )?.value;
+
+    const elongationData =
+        source === "external"
+            ? computeExternalDeltaL()
+            : await computeTendonElongation();
 
     const lines = forceResp.trim().split("\n");
     lines.shift(); 
@@ -919,7 +1048,21 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
         localStorage.setItem("deepPatella_stiffness", stiffness.toFixed(2));
 
         // Calculate normalized stiffness (N)
-        const baselineValue = parseFloat(localStorage.getItem("deepPatella_baseline_mm"));
+        const source = document.querySelector(
+            "input[name='elongation-source']:checked"
+        )?.value;
+
+        let baselineValue;
+
+        if (source === "external") {
+            baselineValue = parseFloat(
+                document.getElementById("baseline-manual-input")?.value
+            );
+        } else {
+            baselineValue = parseFloat(
+                localStorage.getItem("deepPatella_baseline_mm")
+            );
+        }
         if (!isNaN(baselineValue) && baselineValue > 0) {
             const normalizedStiffness = stiffness * baselineValue;
             const normalizedSpan = document.getElementById("normalized-stiffness-value");
@@ -940,7 +1083,14 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
 // === Export PDF Report ===
 document.getElementById("export-pdf-btn").addEventListener("click", async () => {
     try {
-        const baseline = localStorage.getItem("deepPatella_baseline_mm") || "–";
+        const source = document.querySelector(
+            "input[name='elongation-source']:checked"
+        )?.value;
+
+        const baseline =
+            source === "external"
+                ? document.getElementById("baseline-manual-input")?.value || "–"
+                : localStorage.getItem("deepPatella_baseline_mm") || "–";
         const factor = localStorage.getItem("deepPatella_conversion_factor") || "–";
         const stiffness = localStorage.getItem("deepPatella_stiffness") || "–";
         const normalized = localStorage.getItem("deepPatella_stiffness_normalized") || "–";

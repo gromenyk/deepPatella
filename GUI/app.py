@@ -82,8 +82,6 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from flask import Flask, render_template, request, jsonify, send_from_directory, Response, send_file
 from threading import Thread, Event
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
 from io import BytesIO
 
 app = Flask(__name__)
@@ -361,6 +359,8 @@ def cleanup():
 @app.route('/process_force', methods=['POST'])
 def process_force():
     try:
+        data = request.get_json(silent=True) or {}
+        elongation_source = data.get("elongation_source", "kalman")
         # Routes
         data_dir = os.path.join(os.path.dirname(__file__), "static", "data")
         ramp_path = os.path.join(data_dir, "force_ramp.xlsx")
@@ -370,7 +370,7 @@ def process_force():
         output_path = os.path.join(data_dir, "force_ramp_processed.csv")
 
         # Switch to use directly predicted coords, or use the kalman corrected coords 
-        use_kalman = True   # True = Use Kalman | False = Uses insertion_coords.csv (blunt output)
+        use_kalman = elongation_source == "kalman"   # True = Use Kalman | False = Uses insertion_coords.csv (blunt output)
 
         # Read force ramp file (Excel) 
         df_force = pd.read_excel(ramp_path)
@@ -388,12 +388,25 @@ def process_force():
 
             df_coords = pd.concat([kalman_distal, kalman_proximal], axis=1)
             df_coords.columns = ['distal_X', 'distal_y', 'proximal_x', 'proximal_y']
-            print("Using coords from Kalman files")
-        else:
-            df_coords = pd.read_csv(coords_path)
-            print("Using coords from insertion_coords.csv.")
 
-        num_frames = len(df_coords)
+            num_frames = len(df_coords)
+            print("🧠 Using Kalman coordinates for frame count")
+
+        else:
+            # External elongation defines frame count
+            ext_csv = os.path.join(data_dir, "external_elongation.csv")
+            ext_xlsx = os.path.join(data_dir, "external_elongation.xlsx")
+
+            if os.path.exists(ext_csv):
+                df_ext = pd.read_csv(ext_csv)
+            elif os.path.exists(ext_xlsx):
+                df_ext = pd.read_excel(ext_xlsx)
+            else:
+                raise FileNotFoundError("External elongation file not found")
+
+            num_frames = len(df_ext)
+            df_coords = None  # IMPORTANT
+            print("🧠 Using EXTERNAL elongation for frame count")
 
         # Parameters
         fs_force = 1000.0        # Force csv frequency (Hz)
@@ -434,7 +447,7 @@ def process_force():
         df_resampled.to_csv(output_path, index=False)
 
         # Elongation calculation in backend
-        if {"distal_X", "distal_y", "proximal_x", "proximal_y"}.issubset(df_coords.columns):
+        if use_kalman and df_coords is not None:
             distal_x = df_coords["distal_y"].values 
             distal_y_fixed = df_coords["distal_X"].values
             proximal_x_fixed = df_coords["proximal_y"].values
@@ -458,6 +471,9 @@ def process_force():
         else:
             print("Could not find coords columns to calculate elongation")
             elong_mm = None
+
+        delay_frames = None
+        delay_seconds = None
         
         if elong_mm is not None:
             fuerza = force_resampled
