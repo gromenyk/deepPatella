@@ -21,6 +21,49 @@ window.addEventListener("load", () => {
     const canvas = document.getElementById("overlay");
     const ctx = canvas.getContext("2d");
 
+    // Baseline mode selection handling
+
+    const modeRadios = document.querySelectorAll('input[name="baseline-mode"]');
+        let baselineMode = "inference";
+
+        function onBaselineModeChange(mode) {
+            const manualUpload = document.getElementById("manual-video-upload");
+            if (!manualUpload) return;
+
+            if (mode === "manual") {
+                manualUpload.style.display = "block";
+
+                // Reset all coordinate inputs
+                ["distal", "proximal", "extra1", "extra2"].forEach(id => {
+                    const input = document.getElementById(id);
+                    if (input) input.value = "Click on the image";
+                });
+
+                // Reset points array → all points editable
+                points = [
+                    { coords: null, color: "#00FF00", inputId: "distal", fixed: false },
+                    { coords: null, color: "#00BFFF", inputId: "proximal", fixed: false }
+                ];
+
+                draw();
+
+            } else {
+                manualUpload.style.display = "none";
+                // inference mode → Kalman polling will repopulate everything
+            }
+
+            console.log("Baseline mode changed to:", mode);
+        }
+
+        modeRadios.forEach(radio => {
+            radio.addEventListener("change", () => {
+                if (radio.checked) {
+                    baselineMode = radio.value;
+                    onBaselineModeChange(baselineMode);
+                }
+            });
+        });
+
     // Initial placeholder
     function drawPlaceholder() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -130,17 +173,20 @@ window.addEventListener("load", () => {
     canvas.addEventListener("click", e => {
         if (dragging) return;
 
-        // Check which input is still free
-        const slots = [
-            { id: "extra1", color: "#FFA500" },
-            { id: "extra2", color: "#FF00FF" }
+        const clickOrder = [
+            { id: "distal", color: "#00FF00", fixed: true },
+            { id: "proximal", color: "#00BFFF", fixed: true },
+            { id: "extra1", color: "#FFA500", fixed: false },
+            { id: "extra2", color: "#FF00FF", fixed: false }
         ];
-        const freeSlot = slots.find(slot => {
-            const input = document.getElementById(slot.id);
-            return input && input.value === "";
+
+        // Find first free slot
+        const freeSlot = clickOrder.find(slot => {
+            const point = points.find(p => p.inputId === slot.id);
+            return !point || !point.coords;
         });
 
-        if (!freeSlot) return; // No free slots
+        if (!freeSlot) return;
 
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -148,11 +194,9 @@ window.addEventListener("load", () => {
 
         // Update input
         const input = document.getElementById(freeSlot.id);
-        if (input) {
-            input.value = `(${x.toFixed(1)}, ${y.toFixed(1)})`;
-        }
+        input.value = `(${x.toFixed(1)}, ${y.toFixed(1)})`;
 
-        // If point already existed, replace. Otherwise, add the point. 
+        // Update or create point
         const existing = points.find(p => p.inputId === freeSlot.id);
         if (existing) {
             existing.coords = [x, y];
@@ -161,12 +205,13 @@ window.addEventListener("load", () => {
                 coords: [x, y],
                 color: freeSlot.color,
                 inputId: freeSlot.id,
-                fixed: false
+                fixed: freeSlot.fixed
             });
         }
 
         draw();
     });
+
 
     // Delete extra point with mouse right click
     canvas.addEventListener("contextmenu", e => {
@@ -177,15 +222,25 @@ window.addEventListener("load", () => {
         const y = e.clientY - rect.top;
 
         const point = getPointAt(x, y);
-        if (point && !point.fixed) { // Only extra points can be deleted
-            const input = document.getElementById(point.inputId);
-            if (input) input.value = "";
+        if (!point) return;
 
-            points = points.filter(p => p.inputId !== point.inputId);
-
-            draw();
+        // In inference mode, only extra points can be deleted
+        if (baselineMode === "inference" && point.fixed) {
+            return;
         }
+
+        // Reset input
+        const input = document.getElementById(point.inputId);
+        if (input) {
+            input.value = "Click on the image";
+        }
+
+        // Remove coords but keep point definition
+        point.coords = null;
+
+        draw();
     });
+
 
     // Button for calculating the tendon length and drawing the curve
     document.getElementById("calculate-btn").addEventListener("click", () => {
@@ -307,5 +362,44 @@ window.addEventListener("load", () => {
     }
 
     checkKalman();
+
+// === Manual video upload ===
+
+const manualVideoInput = document.getElementById("upload-baseline-video");
+const manualUploadBtn  = document.getElementById("upload-baseline-video-btn");
+
+if (manualUploadBtn && manualVideoInput) {
+    manualUploadBtn.addEventListener("click", async () => {
+
+        if (!manualVideoInput.files || manualVideoInput.files.length === 0) {
+            alert("Please select a video first.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("video", manualVideoInput.files[0]);
+
+        try {
+            const response = await fetch("/upload_manual_video", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error("Manual video upload failed");
+            }
+
+            // Force reload of first frame (avoid browser cache)
+            const baseFrameUrl = img.getAttribute("data-frame-url");
+            img.src = baseFrameUrl + "?t=" + Date.now();
+
+            console.log("✅ Manual video uploaded, first frame refreshed");
+
+        } catch (err) {
+            console.error(err);
+            alert("Error uploading manual video.");
+        }
+    });
+}
 
 });

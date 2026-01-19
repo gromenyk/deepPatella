@@ -53,6 +53,14 @@ let chartTF80 = null;
 
 const USE_LOWER_LEG_MOMENT_ARM = false; // Change to false to not use the lower leg moment arm in stiffness calculation (debugging)
 
+function getBaselineFromStorage() {
+    const baseline = parseFloat(localStorage.getItem("deepPatella_baseline_mm"));
+    if (isNaN(baseline) || baseline <= 0) {
+        throw new Error("Baseline tendon length not found. Please calculate baseline first.");
+    }
+    return baseline;
+}
+
 // Show saved baseline when loading the page
 window.addEventListener("load", () => {
     const baselineValue = localStorage.getItem("deepPatella_baseline_mm");
@@ -67,15 +75,14 @@ window.addEventListener("load", () => {
     );
 
     function updateBaselineManualVisibility() {
+        if (!baselineManualContainer) return;
+
         const selectedSource = document.querySelector(
             "input[name='elongation-source']:checked"
         )?.value;
 
-        if (selectedSource === "external") {
-            baselineManualContainer.style.display = "block";
-        } else {
-            baselineManualContainer.style.display = "none";
-        }
+        baselineManualContainer.style.display =
+            selectedSource === "external" ? "block" : "none";
     }
 
     elongationSourceRadios.forEach(radio => {
@@ -257,7 +264,7 @@ async function loadAndProcessCSV_External() {
 
         const data = rows.map((row, i) => {
             const [frame, elong_px] = row.split(",").map(Number);
-            const elong_mm = elong_px / factor;
+            const elong_mm = elong_px;
             return { frame, elongation_mm: elong_mm };
         });
 
@@ -270,34 +277,6 @@ async function loadAndProcessCSV_External() {
         throw error;
     }
 }
-
-function computeExternalDeltaL() {
-    const source = document.querySelector(
-        "input[name='elongation-source']:checked"
-    )?.value;
-
-    if (source !== "external") {
-        throw new Error("computeExternalDeltaL called in non-external mode");
-    }
-
-    const baselineInput = document.getElementById("baseline-manual-input");
-    const baseline = parseFloat(baselineInput?.value);
-
-    if (isNaN(baseline) || baseline <= 0) {
-        alert("Please enter a valid baseline tendon length (mm) for external elongation.");
-        throw new Error("Invalid external baseline");
-    }
-
-    if (!window.elongationData) {
-        throw new Error("External elongation data not loaded");
-    }
-
-    return window.elongationData.map(d => ({
-        frame: d.frame,
-        deltaL: d.elongation_mm - baseline
-    }));
-}
-
 
 // Tendon length calculation and relative elongation (using Kalman coords)
 async function computeTendonElongation() {
@@ -592,9 +571,14 @@ async function plotForceElongation() {
         "input[name='elongation-source']:checked"
     )?.value;
 
+    const baseline = getBaselineFromStorage();
+
     const elongationData =
         source === "external"
-            ? computeExternalDeltaL()
+            ? window.elongationData.map(d => ({
+                frame: d.frame,
+                deltaL: d.elongation_mm - baseline
+            }))
             : await computeTendonElongation();
 
 
@@ -701,14 +685,11 @@ document.getElementById("generate-force-strain-tf0-tf80").addEventListener("clic
 
     let tendonRestLength;
 
-    if (source === "external") {
-        tendonRestLength = parseFloat(
-            document.getElementById("baseline-manual-input")?.value
-        );
-    } else {
-        tendonRestLength = parseFloat(
-            localStorage.getItem("deepPatella_baseline_mm")
-        );
+    try {
+        tendonRestLength = getBaselineFromStorage();
+    } catch (e) {
+        alert(e.message);
+        return;
     }
 
     if (isNaN(tendonRestLength) || tendonRestLength <= 0) {
@@ -808,9 +789,14 @@ async function plotForceElongation_TF80() {
         "input[name='elongation-source']:checked"
     )?.value;
 
+    const baseline = getBaselineFromStorage();
+
     const elongationData =
         source === "external"
-            ? computeExternalDeltaL()
+            ? window.elongationData.map(d => ({
+                frame: d.frame,
+                deltaL: d.elongation_mm - baseline
+            }))
             : await computeTendonElongation();
 
     const lines = forceResp.trim().split("\n");
@@ -1056,15 +1042,13 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
 
         let baselineValue;
 
-        if (source === "external") {
-            baselineValue = parseFloat(
-                document.getElementById("baseline-manual-input")?.value
-            );
-        } else {
-            baselineValue = parseFloat(
-                localStorage.getItem("deepPatella_baseline_mm")
-            );
+        try {
+            baselineValue = getBaselineFromStorage();
+        } catch (e) {
+            console.warn(e.message);
+            return;
         }
+
         if (!isNaN(baselineValue) && baselineValue > 0) {
             const normalizedStiffness = stiffness * baselineValue;
             const normalizedSpan = document.getElementById("normalized-stiffness-value");
@@ -1089,10 +1073,7 @@ document.getElementById("export-pdf-btn").addEventListener("click", async () => 
             "input[name='elongation-source']:checked"
         )?.value;
 
-        const baseline =
-            source === "external"
-                ? document.getElementById("baseline-manual-input")?.value || "–"
-                : localStorage.getItem("deepPatella_baseline_mm") || "–";
+        const baseline = localStorage.getItem("deepPatella_baseline_mm") || "–";
         const factor = localStorage.getItem("deepPatella_conversion_factor") || "–";
         const stiffness = localStorage.getItem("deepPatella_stiffness") || "–";
         const normalized = localStorage.getItem("deepPatella_stiffness_normalized") || "–";
@@ -1167,11 +1148,8 @@ function exportResultsToXLSX() {
         "input[name='elongation-source']:checked"
     )?.value || "kalman";
 
-    const baseline =
-        source === "external"
-            ? parseFloat(document.getElementById("baseline-manual-input")?.value)
-            : parseFloat(localStorage.getItem("deepPatella_baseline_mm"));
-
+    
+    const baseline = parseFloat(localStorage.getItem("deepPatella_baseline_mm"));
     const stiffness = parseFloat(localStorage.getItem("deepPatella_stiffness"));
     const normalized = parseFloat(localStorage.getItem("deepPatella_stiffness_normalized"));
     const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor"));

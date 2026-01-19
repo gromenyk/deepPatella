@@ -83,6 +83,7 @@ from scipy.interpolate import interp1d
 from flask import Flask, render_template, request, jsonify, send_from_directory, Response, send_file
 from threading import Thread, Event
 from io import BytesIO
+import cv2
 
 app = Flask(__name__)
 progress = {
@@ -706,6 +707,46 @@ def upload_external_elongation():
 
     print(f"✅ External elongation file saved at: {save_path}")
     return jsonify({'message': 'External elongation uploaded successfully!', 'filename': save_path}), 200
+
+# Upload manual video and extract first frame for baseline calculation
+@app.route('/upload_manual_video', methods=['POST'])
+def upload_manual_video():
+    try:
+        if 'video' not in request.files:
+            return jsonify({'error': 'No video file provided'}), 400
+
+        file = request.files['video']
+        if file.filename == '':
+            return jsonify({'error': 'Empty filename'}), 400
+
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        tmp_video_path = os.path.join(project_root, 'GUI', 'static', 'tmp_manual_video.mp4')
+        file.save(tmp_video_path)
+
+        cap = cv2.VideoCapture(tmp_video_path)
+        success, frame = cap.read()
+        cap.release()
+
+        if not success:
+            return jsonify({'error': 'Could not read first frame'}), 500
+
+        frame_path = os.path.join(
+            project_root,
+            'GUI',
+            'static',
+            'img',
+            'frame_first.png'
+        )
+
+        cv2.imwrite(frame_path, frame)
+
+        os.remove(tmp_video_path)
+
+        return jsonify({'status': 'ok'}), 200
+
+    except Exception as e:
+        print("❌ Error in upload_manual_video:", e)
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

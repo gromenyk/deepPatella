@@ -81,7 +81,39 @@
                 <!-- Coordinates card -->
                 <div class="card">
                     <h3>Coordinates</h3>
+                    <div class="baseline-mode-selector">
+                        <span class="baseline-mode-label">Coordinate source:</span>
 
+                        <label class="baseline-radio">
+                            <input type="radio" name="baseline-mode" value="inference" checked>
+                            <span>Model Inference</span>
+                        </label>
+
+                        <label class="baseline-radio">
+                            <input type="radio" name="baseline-mode" value="manual">
+                            <span>Manual Processing</span>
+                        </label>
+                    </div>
+                    <div id="manual-video-upload" style="display:none;">
+                        <label>
+                            Upload video (first frame will be used)
+                            <span class="info-icon"
+                                data-tooltip="The first frame will be extracted and used for baseline definition.">
+                            </span>
+                        </label>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input
+                                type="file"
+                                id="upload-baseline-video"
+                                accept="video/*"
+                            >
+                            <button
+                                id="upload-baseline-video-btn"
+                                type="button">
+                                Upload
+                            </button>
+                        </div>
+                    </div>
                     <label for="distal">
                         Distal Tendon-Bone Insertion Coordinates
                         <span class="color-dot" style="background-color:#00FF00;"></span>
