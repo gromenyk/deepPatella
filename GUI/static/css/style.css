@@ -657,6 +657,58 @@ menu li.active a {
     transition: all ease-in-out;
 }
 
+/* Baseline selector styles */
+
+.baseline-mode-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin: 12px 0 18px 0;
+    font-size: 0.9rem;
+}
+
+.baseline-mode-label {
+    font-weight: bold;
+    color: #2D373C;
+    white-space: nowrap;
+}
+
+.baseline-radio {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-weight: normal;
+    color: #2D373C;
+}
+
+.baseline-radio input[type="radio"] {
+    accent-color: #46505A;   
+}
+
+
+#upload-baseline-video {
+    font-size: 14px;
+}
+
+#upload-baseline-video-btn {
+    background-color: #46505A;
+    color: white;
+    font-size: 14px;
+    padding: 3px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#upload-baseline-video-btn:hover {
+    background-color: #2D373C;
+    cursor: pointer;
+    transform: scale(1.01);
+    transition: all ease-in-out;
+}
+
 /* ==== STIFFNESS CALCULATION STYLES */
 
 #stiffness-title {
