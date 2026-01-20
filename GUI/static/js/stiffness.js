@@ -321,10 +321,10 @@ function plotElongation(data) {
 
     if (!chartElongation) chartElongation = createGlobalChart(ctx, frames);
 
-    chartElongation.data.datasets = chartElongation.data.datasets.filter(ds => ds.label !== "Tendon elongation (mm)");
+    chartElongation.data.datasets = chartElongation.data.datasets.filter(ds => ds.label !== "Tendon length (mm)");
 
     chartElongation.data.datasets.push({
-        label: "Tendon elongation (mm)",
+        label: "Tendon length (mm)",
         data: [],
         borderColor: "#ff6b00",
         borderWidth: 2,
@@ -445,7 +445,7 @@ function createGlobalChart(ctx, frames) {
                 yElong: {
                     type: "linear",
                     position: "left",
-                    title: { display: true, text: "Elongation (mm)", color: "#fff" },
+                    title: { display: true, text: "Tendon length (mm)", color: "#fff" },
                     ticks: { color: "#ff6b00" },
                     grid: { color: "rgba(255,255,255,0.1)" }
                 },
