@@ -73,6 +73,7 @@ import os
 import subprocess
 import time
 import shutil
+from utils.video_utils import ensure_mp4
 import numpy as np
 import io
 from scipy import signal
@@ -137,9 +138,25 @@ def upload_file():
         upload_folder = os.path.join(project_root, 'TransUNet', 'datasets', 'videos')
         os.makedirs(upload_folder, exist_ok=True)
 
-        saved_filename = 'original_video.mp4'
-        filepath = os.path.join(upload_folder, saved_filename)
-        file.save(filepath)
+        # 1. Guardar con extensión original
+        original_ext = os.path.splitext(file.filename)[1].lower()
+        original_filename = f"original_video{original_ext}"
+        original_path = os.path.join(upload_folder, original_filename)
+
+        file.save(original_path)
+
+        # 2. Convertir si es necesario
+        processed_path = ensure_mp4(original_path)
+
+        # 3. Estandarizar nombre final
+        final_path = os.path.join(upload_folder, 'original_video.mp4')
+
+        if processed_path != final_path:
+            os.rename(processed_path, final_path)
+
+        # 4. (Opcional pero recomendado) borrar original
+        if os.path.exists(original_path) and original_path != final_path:
+            os.remove(original_path)
 
         return render_template(
             'index.html',
