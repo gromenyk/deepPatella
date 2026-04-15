@@ -234,7 +234,7 @@ async function loadAndProcessCSV() {
 
     const distalRows = distalResp.trim().split("\n").slice(1);
     const proximalRows = proximalResp.trim().split("\n").slice(1);
-    const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor")) || 1;
+    const factor = parseFloat(localStorage.getItem("deepPatella_effective_scale")) || 1;
 
     const data = distalRows.map((row, i) => {
         const colsD = row.split(",").map(Number);
@@ -260,7 +260,7 @@ async function loadAndProcessCSV_External() {
         const rows = text.trim().split("\n");
         rows.shift(); // remove header
 
-        const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor")) || 1;
+        const factor = parseFloat(localStorage.getItem("deepPatella_effective_scale")) || 1;
 
         const data = rows.map((row, i) => {
             const [frame, elong_px] = row.split(",").map(Number);
@@ -287,7 +287,7 @@ async function computeTendonElongation() {
 
     const distalRows = distalResp.trim().split("\n").slice(1);
     const proximalRows = proximalResp.trim().split("\n").slice(1);
-    const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor")) || 1;
+    const factor = parseFloat(localStorage.getItem("deepPatella_effective_scale")) || 1;
     const baseline = parseFloat(localStorage.getItem("deepPatella_baseline_mm")) || 0;
 
     const elongationData = distalRows.map((row, i) => {
@@ -1074,7 +1074,7 @@ document.getElementById("export-pdf-btn").addEventListener("click", async () => 
         )?.value;
 
         const baseline = localStorage.getItem("deepPatella_baseline_mm") || "–";
-        const factor = localStorage.getItem("deepPatella_conversion_factor") || "–";
+        const factor = localStorage.getItem("deepPatella_effective_scale") || "–";
         const stiffness = localStorage.getItem("deepPatella_stiffness") || "–";
         const normalized = localStorage.getItem("deepPatella_stiffness_normalized") || "–";
         const videoName = localStorage.getItem("deepPatella_last_video") || "–";
@@ -1152,7 +1152,7 @@ function exportResultsToXLSX() {
     const baseline = parseFloat(localStorage.getItem("deepPatella_baseline_mm"));
     const stiffness = parseFloat(localStorage.getItem("deepPatella_stiffness"));
     const normalized = parseFloat(localStorage.getItem("deepPatella_stiffness_normalized"));
-    const factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor"));
+    const factor = parseFloat(localStorage.getItem("deepPatella_effective_scale"));
     const momentArm = parseFloat(document.getElementById("moment-arm")?.value) || 0.04;
     const videoName = localStorage.getItem("deepPatella_last_video") || "–";
 

@@ -28,6 +28,7 @@ Notes:
 import cv2
 import numpy as np
 import json
+import os
 
 # Required dimensions
 FINAL_WIDTH = 508
@@ -59,6 +60,8 @@ def process_video(input_video_path, output_video_path='../outputs/preprocessed_v
         return next((row for row in range(frame.shape[0]) if np.any(frame[row, :] < threshold)), 0)
 
     processed_frames = []
+
+    transform_saved = False
     
     while cap.isOpened():
         ret, frame = cap.read()
@@ -80,6 +83,30 @@ def process_video(input_video_path, output_video_path='../outputs/preprocessed_v
         scale = min(FINAL_WIDTH / cropped_width, FINAL_HEIGHT / cropped_height)
         new_w = int(cropped_width * scale)
         new_h = int(cropped_height * scale)
+        
+        if not transform_saved:
+            transform_data = {
+                "original_width": frame_width,
+                "original_height": frame_height,
+                "cropped_width": cropped_width,
+                "cropped_height": cropped_height,
+                "scale_508": float(scale)
+            }
+
+            transform_path = os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "outputs",
+                "transformations.json"
+            )
+
+            with open(transform_path, "w") as f:
+                json.dump(transform_data, f, indent=4)
+
+            print(f"[INFO] Transformations saved: {transform_path}")
+
+            transform_saved = True
+
         resized_frame = cv2.resize(cropped_frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
         pad_top = (FINAL_HEIGHT - new_h) // 2
