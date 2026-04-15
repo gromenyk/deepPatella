@@ -1,5 +1,5 @@
 """
-server.py — DeepPatella Backend API
+app.py — DeepPatella Backend API
 -----------------------------------
 
 This module implements the complete backend logic for the DeepPatella GUI.
@@ -85,6 +85,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory,
 from threading import Thread, Event
 from io import BytesIO
 import cv2
+import json
 
 app = Flask(__name__)
 progress = {
@@ -138,23 +139,38 @@ def upload_file():
         upload_folder = os.path.join(project_root, 'TransUNet', 'datasets', 'videos')
         os.makedirs(upload_folder, exist_ok=True)
 
-        # 1. Guardar con extensión original
         original_ext = os.path.splitext(file.filename)[1].lower()
         original_filename = f"original_video{original_ext}"
         original_path = os.path.join(upload_folder, original_filename)
 
         file.save(original_path)
 
-        # 2. Convertir si es necesario
         processed_path = ensure_mp4(original_path)
 
-        # 3. Estandarizar nombre final
+        # Original video first frame for scaling calibration in baseline calculation
+        cap = cv2.VideoCapture(processed_path)
+        success, frame = cap.read()
+        cap.release()
+
+        if success:
+            frame_path = os.path.join(
+                project_root,
+                'GUI',
+                'static',
+                'img',
+                'original_frame.png'
+            )
+            os.makedirs(os.path.dirname(frame_path), exist_ok=True)
+            cv2.imwrite(frame_path, frame)
+            print("original_frame.png saved")
+        else:
+            print("Could not extract first frame")
+
         final_path = os.path.join(upload_folder, 'original_video.mp4')
 
         if processed_path != final_path:
             os.rename(processed_path, final_path)
 
-        # 4. (Opcional pero recomendado) borrar original
         if os.path.exists(original_path) and original_path != final_path:
             os.remove(original_path)
 
@@ -325,10 +341,23 @@ def cleanup():
     disposable_files = [
         os.path.join(project_root, "data", "Synapse", "original_images.npy"),
         os.path.join(project_root, "GUI", "static", "img","frame_first.png"),
+        os.path.join(project_root, "GUI", "static", "img", "original_frame.png"),
         os.path.join(project_root, "TransUNet","datasets", "videos", "original_video.mp4"),
         os.path.join(project_root, "TransUNet","lists","lists_Synapse","test_vol.txt"),
-        os.path.join(project_root, "TransUNet", "process_times.csv")
+        os.path.join(project_root, "TransUNet", "process_times.csv"),
+        os.path.join(project_root, "TransUNet", "outputs", "transformations.json")
     ]
+
+    # b) Remove all __pycache__ folders recursively
+    for root, dirs, files in os.walk(project_root):
+        for dir_name in dirs:
+            if dir_name == "__pycache__":
+                pycache_path = os.path.join(root, dir_name)
+                try:
+                    shutil.rmtree(pycache_path)
+                    print(f"🧹 Removed {pycache_path}")
+                except Exception as e:
+                    print(f"⚠️ Could not remove {pycache_path}: {e}")
 
     try:
         # Cleanup of folders and files
@@ -724,6 +753,30 @@ def upload_external_elongation():
 
     print(f"✅ External elongation file saved at: {save_path}")
     return jsonify({'message': 'External elongation uploaded successfully!', 'filename': save_path}), 200
+
+# Convert original scale to 512 x 512 scale
+@app.route('/transformations')
+def get_transformations():
+    try:
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+        transform_path = os.path.join(
+            project_root,
+            'TransUNet',
+            'outputs',
+            'transformations.json'
+        )
+
+        if not os.path.exists(transform_path):
+            return jsonify({"error": "transformations.json not found"}), 404
+
+        with open(transform_path, "r") as f:
+            data = json.load(f)
+
+        return jsonify(data)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Upload manual video and extract first frame for baseline calculation
 @app.route('/upload_manual_video', methods=['POST'])

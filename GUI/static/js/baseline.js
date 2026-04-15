@@ -269,7 +269,7 @@ window.addEventListener("load", () => {
     // px → mm button conversion
     document.getElementById("convert-btn").addEventListener("click", () => {
         const pxValue = parseFloat(document.getElementById("tendon-length").value);
-        const factor = parseFloat(document.getElementById("conversion-factor").value);
+        const factor = parseFloat(localStorage.getItem("deepPatella_effective_scale"));
 
         if (isNaN(pxValue)) {
             alert("You need to calculate the tendon length in pixels first.");
@@ -277,7 +277,7 @@ window.addEventListener("load", () => {
         }
 
         if (isNaN(factor) || factor <= 0) {
-            alert("Please enter a valid conversion factor (px per mm).");
+            alert("Please calibrate the scale first.");
             return;
         }
 
@@ -285,7 +285,6 @@ window.addEventListener("load", () => {
         document.getElementById("tendon-length-mm").value = mmValue.toFixed(2);
 
         localStorage.setItem("deepPatella_baseline_mm", mmValue.toFixed(2));
-        localStorage.setItem("deepPatella_conversion_factor", factor);
     });
 
 

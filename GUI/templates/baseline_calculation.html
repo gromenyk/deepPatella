@@ -42,6 +42,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="{{ url_for('static', filename='js/tendonCurve.js') }}"></script>
     <script src="{{ url_for('static', filename='js/baseline.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/scale_calibration.js') }}"></script>
 </head>
 <body 
     data-distal-url="{{ url_for('static', filename='data/kalman_coords_distal.csv') }}"
@@ -146,9 +147,23 @@
                     <button id="calculate-btn">Calculate tendon length (pixels)</button>
                     <label for="tendon-length">Tendon length (px)</label>
                     <input type="text" id="tendon-length" readonly>
-                    <label for="conversion-factor">Pixel to Millimeter Conversion Factor</label>
-                    <input type="text" id="conversion-factor" placeholder="e.g. 6.48">
-                    <button id="convert-btn">Convert to mm</button>
+                    <label>Conversion factor</label>
+                        <div class="conversion-block">
+                            <button id="calibrate-btn">
+                                Calculate conversion factor
+                            </button>
+                            <div class="scale-display-container">
+                                <label>Original scale</label>
+                                <span id="original-scale-display" class="conversion-factor-display">
+                                    Not calibrated
+                                </span>
+                                <label>Effective scale (model space)</label>
+                                <span id="effective-scale-display" class="conversion-factor-display">
+                                    -
+                                </span>
+                            </div>
+                        </div>
+                        <button id="convert-btn">Convert to mm</button>
                     <label for="tendon-length-mm">Tendon length (mm)</label>
                     <input type="text" id="tendon-length-mm" readonly>
                 </div>
@@ -167,5 +182,25 @@
         </div>
     </div>
 <script src="{{ url_for('static', filename='js/reset_ui.js') }}"></script>
+<div id="calibration-modal" class="modal hidden">
+    <div class="modal-content">
+        <h3>Scale Calibration</h3>
+        <p>Draw a straight line corresponding to exactly 1 cm.</p>
+
+        <div class="calibration-container">
+            <img id="calibration-image"
+                src="{{ url_for('static', filename='img/original_frame.png') }}">
+            <canvas id="calibration-canvas"></canvas>
+        </div>
+
+        <div class="modal-actions">
+            <div id="calibration-result">
+                Scale: <span id="calibration-value">-</span> px/mm
+            </div>
+            <button id="calibration-confirm">Confirm</button>
+            <button id="calibration-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

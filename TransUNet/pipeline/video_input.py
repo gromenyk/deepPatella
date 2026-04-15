@@ -26,6 +26,7 @@ Notes:
 import cv2
 import os
 import numpy as np
+import json
 import argparse
 
 video_path = './datasets/videos/example_video.mp4'
@@ -50,6 +51,8 @@ def frame_split(video_path, output_folder, original_images_file):
     frame_count = 0
     original_images = []
 
+    transform_saved_512 = False
+
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -69,6 +72,35 @@ def frame_split(video_path, output_folder, original_images_file):
         left = (512 - new_width) // 2
         right = 512 - new_width - left
         padded_frame = cv2.copyMakeBorder(resized_frame, top, bottom, left, right, cv2.BORDER_CONSTANT, value=[0,0,0])
+
+        # Save transformation parameters for scaling calibration
+        if not transform_saved_512:
+
+            transform_path = os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "outputs",
+                "transformations.json"
+            )
+
+            if os.path.exists(transform_path):
+                with open(transform_path, "r") as f:
+                    transform_data = json.load(f)
+            else:
+                transform_data = {}
+
+            transform_data["input_512"] = {
+                "input_width_508": width,
+                "input_height_508": height,
+                "scale_512": float(scale)
+            }
+
+            with open(transform_path, "w") as f:
+                json.dump(transform_data, f, indent=4)
+
+            print("[INFO] transformations.json updated with scale_512")
+
+            transform_saved_512 = True
 
         # Save original images
         original_images.append(padded_frame)
