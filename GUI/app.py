@@ -147,6 +147,31 @@ def upload_file():
 
         processed_path = ensure_mp4(original_path)
 
+        # Original video FPS obtention
+
+        cap_fps = cv2.VideoCapture(processed_path)
+        fps = cap_fps.get(cv2.CAP_PROP_FPS)
+        cap_fps.release()
+
+        if fps <= 0 or fps > 500:
+            print(f"⚠️ Invalid FPS detected ({fps}), using fallback = 50")
+            fps = 50.0
+
+        fps_path = os.path.join(
+            project_root,
+            'GUI',
+            'static',
+            'data',
+            'video_fps.txt'
+        )
+
+        os.makedirs(os.path.dirname(fps_path), exist_ok=True)
+
+        with open(fps_path, "w") as f:
+            f.write(str(fps))
+
+        print(f"FPS ({fps}) saved at: {fps_path}")
+
         # Original video first frame for scaling calibration in baseline calculation
         cap = cv2.VideoCapture(processed_path)
         success, frame = cap.read()
@@ -181,6 +206,24 @@ def upload_file():
         )
     else:
         return render_template('index.html', message='File type not allowed')
+    
+@app.route('/get_fps')
+def get_fps():
+    try:
+        data_dir = os.path.join(os.path.dirname(__file__), "static", "data")
+        fps_path = os.path.join(data_dir, "video_fps.txt")
+
+        if not os.path.exists(fps_path):
+            return jsonify({"fps": 50.0})  # fallback
+
+        with open(fps_path, "r") as f:
+            fps = float(f.read().strip())
+
+        return jsonify({"fps": fps})
+
+    except Exception as e:
+        print(f"❌ Error loading FPS: {e}")
+        return jsonify({"fps": 50.0})
 
 # Run inference    
 @app.route('/run_inference', methods=['POST'])
@@ -342,6 +385,7 @@ def cleanup():
         os.path.join(project_root, "data", "Synapse", "original_images.npy"),
         os.path.join(project_root, "GUI", "static", "img","frame_first.png"),
         os.path.join(project_root, "GUI", "static", "img", "original_frame.png"),
+        os.path.join(project_root, "GUI", "static", "img", "original_frame.png"),
         os.path.join(project_root, "TransUNet","datasets", "videos", "original_video.mp4"),
         os.path.join(project_root, "TransUNet","lists","lists_Synapse","test_vol.txt"),
         os.path.join(project_root, "TransUNet", "process_times.csv"),
@@ -457,7 +501,7 @@ def process_force():
 
         # Parameters
         fs_force = 1000.0        # Force csv frequency (Hz)
-        fps_video = 51.491       # Video FPS
+        calculate_cross_correlation = False  # Set to True if you want to calculate the cross-correlation and lag between force and elongation
 
         # --- Downsampling con SciPy ---
         force_resampled = signal.resample(df_force["Force_right"], num_frames)
@@ -521,8 +565,9 @@ def process_force():
 
         delay_frames = None
         delay_seconds = None
-        
-        if elong_mm is not None:
+
+        if calculate_cross_correlation and elong_mm is not None:
+            # --- Cross-correlation (optional debug) ---
             fuerza = force_resampled
 
             elong_norm = elong_mm - np.mean(elong_mm)
@@ -531,19 +576,24 @@ def process_force():
             corr = signal.correlate(fuerza_norm, elong_norm, mode='full')
             lags = signal.correlation_lags(len(fuerza_norm), len(elong_norm), mode='full')
             lag_opt = lags[np.argmax(corr)]
-            delay_seconds = lag_opt / fps_video
+
+            # Load FPS only if needed
+            fps_path = os.path.join(data_dir, "video_fps.txt")
+            if os.path.exists(fps_path):
+                with open(fps_path, "r") as f:
+                    fps_video = float(f.read().strip())
+            else:
+                fps_video = 50.0
+
             delay_frames = lag_opt
+            delay_seconds = lag_opt / fps_video
 
             corr_norm = corr / (len(fuerza_norm) * np.std(fuerza_norm) * np.std(elong_norm))
             max_corr_value = np.max(corr_norm)
 
             print(f"📊 Cross-correlation result:")
-            print(f"📈 Cross-correlation peak value: {max_corr_value:.3f}")
-            print(f"   → Best lag: {lag_opt} frames ({delay_seconds:.4f} s)")
-            print(f"   → Positive = Force ramp is ahead of elongation")
-            print(f"   → Negative = Elongation is ahead of force ramp")
-        else:
-            print("Could not calculate elongation for cross correlation")
+            print(f"📈 Peak: {max_corr_value:.3f}")
+            print(f"   → Lag: {lag_opt} frames ({delay_seconds:.4f} s)")
 
         # JSON output to the frontend
         return jsonify({
@@ -551,8 +601,8 @@ def process_force():
             "output_file": "static/data/force_ramp_processed.csv",
             "frames": int(num_frames),
             "cross_correlation": {
-                "lag_frames": int(delay_frames),
-                "lag_seconds": int(delay_seconds)
+                "lag_frames": int(delay_frames) if delay_frames is not None else None,
+                "lag_seconds": float(delay_seconds) if delay_seconds is not None else None
             }
         }), 200
 

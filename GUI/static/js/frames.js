@@ -25,6 +25,7 @@ let pollingInterval = null;
 let currentFrameIndex = 0;
 let frames = [];
 let frameInterval = null;
+let fps =51; // Fallback FPS if not retrieved from backend
 
 // Check if the frames are already available to be rendered on the UI
 function checkFrames() {
@@ -47,7 +48,14 @@ function checkFrames() {
 
 // Load the complete list of extracted frames from the backend
 function loadFrames() {
-    fetch('/get_frames')
+    fetch('/get_fps')
+        .then(response => response.json())
+        .then(data => {
+            fps = data.fps;
+            console.log("🎥 FPS loaded:", fps);
+
+            return fetch('/get_frames');
+        })
         .then(response => response.json())
         .then(data => {
             frames = data.frames;
@@ -73,7 +81,7 @@ function playFrames() {
         frameInterval = setInterval(() => {
             currentFrameIndex = (currentFrameIndex + 1) % frames.length;
             showFrame();
-        }, 1000 / 51);
+        }, 1000 / fps);
     }
 }
 
