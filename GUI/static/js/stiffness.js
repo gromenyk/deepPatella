@@ -136,14 +136,53 @@ window.addEventListener("load", () => {
         uploadExtElongBtn.addEventListener("click", async () => {
             const file = uploadExtElongInput.files[0];
             if (!file) {
-                alert("Please select a CSV or XLSX file first.");
+                alert("Please select a CSV file first.");
                 return;
             }
 
-            const formData = new FormData();
-            formData.append("file", file);
-
             try {
+                // Read CSV
+                const text = await file.text();
+                const rows = text.trim().split("\n");
+
+                if (rows.length < 2) {
+                    throw new Error("CSV file is empty or invalid.");
+                }
+
+                rows.shift(); // remove header
+
+                const values = rows.map(row => {
+                    const parts = row.split(",");
+                    return parseFloat(parts[1]); // elongation_mm
+                }).filter(v => !isNaN(v));
+
+                if (values.length === 0) {
+                    throw new Error("No valid elongation values found.");
+                }
+
+                // Compute baseline (mean of first frames)
+                const baseline = values
+                    .slice(0, 10)
+                    .reduce((sum, v) => sum + v, 0) / Math.min(10, values.length);
+
+                if (isNaN(baseline) || baseline <= 0) {
+                    throw new Error("Invalid baseline computed from CSV.");
+                }
+
+                // Store baseline
+                localStorage.setItem("deepPatella_baseline_mm", baseline);
+
+                const baselineInput = document.getElementById("baseline-mm");
+                if (baselineInput) {
+                    baselineInput.value = `${baseline.toFixed(2)} mm`;
+                }
+
+                console.log("Baseline set from CSV:", baseline);
+
+                // Upload file
+                const formData = new FormData();
+                formData.append("file", file);
+
                 const response = await fetch("/upload_external_elongation", {
                     method: "POST",
                     body: formData,
@@ -152,10 +191,11 @@ window.addEventListener("load", () => {
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message || "Upload failed");
 
-                console.log("✅ External elongation uploaded:", result);
+                console.log("External elongation uploaded:", result);
                 alert("External elongation uploaded successfully.");
+
             } catch (error) {
-                console.error("❌ Error uploading external elongation:", error);
+                console.error("Error uploading external elongation:", error);
                 alert("Error uploading external elongation. Check console for details.");
             }
         });

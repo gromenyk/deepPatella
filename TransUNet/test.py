@@ -433,7 +433,7 @@ print('[PROGRESS 45.5] Finished plotting insertion coordinates')
 # Reconstruct video with predictions
 print('[UI] Building video with predictions')
 start_time_build_video_with_preds = log_time('Building video with predictions')
-reconstruct_video(args.placed_centroids_folder, args.output_video_file)
+reconstruct_video(args.placed_centroids_folder, args.output_video_file, args.original_video_path)
 end_time_build_video_with_preds = time.time()
 log_time_to_csv('Video reconstruction Transunet coords', start_time_build_video_with_preds, end_time_build_video_with_preds)
 print('[PROGRESS 54.6] Finished building video with TransUNet predictions')

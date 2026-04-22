@@ -39,6 +39,7 @@ def obtain_fps(original_video_path):
     
     fps = cap.get(cv2.CAP_PROP_FPS)  
     cap.release()
+    fps = int(round(fps))
 
     return fps
 

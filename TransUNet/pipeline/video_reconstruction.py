@@ -27,9 +27,21 @@ import os
 
 frames_folder = './outputs/placed_center_of_mass'
 output_video_file = './outputs/reconstructed_video.mp4'
-frame_rate = 50
+original_video_path = '../datasets/videos/original_video.mp4'
 
-def reconstruct_video(frames_folder, output_video_file, frame_rate = 50):
+def obtain_fps(original_video_path):
+    cap = cv2.VideoCapture(original_video_path)
+    if not cap.isOpened():
+        raise ValueError(f"Error when opening the video: {original_video_path}")
+    
+    fps = cap.get(cv2.CAP_PROP_FPS) 
+    cap.release()
+    fps = int(round(fps)) 
+
+    return fps
+
+def reconstruct_video(frames_folder, output_video_file, original_video_path):
+    fps = obtain_fps(original_video_path)
     frame_files = sorted([f for f in os.listdir(frames_folder) if f.endswith('.png')])
 
     if not frame_files:
@@ -42,7 +54,7 @@ def reconstruct_video(frames_folder, output_video_file, frame_rate = 50):
     height, width, layers = first_frame.shape
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    video_writer = cv2.VideoWriter(output_video_file, fourcc, frame_rate, (width, height))
+    video_writer = cv2.VideoWriter(output_video_file, fourcc, fps, (width, height))
 
     for frame_file in frame_files:
         frame_path = os.path.join(frames_folder, frame_file)
