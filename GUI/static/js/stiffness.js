@@ -1061,6 +1061,10 @@ document.getElementById("calculate-stiffness-btn").addEventListener("click", fun
 
         const L50 = elongationForForce(TF50);
         const L80 = elongationForForce(TF80);
+        localStorage.setItem("deepPatella_TF50_force", TF50.toFixed(2));
+        localStorage.setItem("deepPatella_TF80_force", TF80.toFixed(2));
+        localStorage.setItem("deepPatella_TF50_elongation", L50.toFixed(4));
+        localStorage.setItem("deepPatella_TF80_elongation", L80.toFixed(4));
 
         if (L50 == null || L80 == null) {
             alert("Could not determine elongations for TF50–TF80.");
@@ -1125,39 +1129,51 @@ document.getElementById("export-pdf-btn").addEventListener("click", async () => 
         const chart2 = document.getElementById("chart-hysteresis")?.toDataURL() || null;
         const chart3 = document.getElementById("chart-force-elongation-tf0080")?.toDataURL() || null;
 
+        const TF50 = localStorage.getItem("deepPatella_TF50_force") || "–";
+        const TF80 = localStorage.getItem("deepPatella_TF80_force") || "–";
+        const L50 = localStorage.getItem("deepPatella_TF50_elongation") || "–";
+        const L80 = localStorage.getItem("deepPatella_TF80_elongation") || "–";
+
+const momentArm = document.getElementById("moment-arm")?.value || "0.04";
+
         const docDefinition = {
             content: [
                 { text: "DeepPatella – Tendon Stiffness Report", style: "header" },
-                { text: `Generated on: ${timestamp}`, margin: [0, 0, 0, 20] },
 
-                { text: "Input Parameters", style: "subheader" },
                 {
-                    ul: [
-                        `Video file: ${videoName}`,
-                        `Baseline tendon length (mm): ${baseline}`,
-                        `Pixel–mm conversion factor: ${factor}`,
-                    ]
-                },
+                    table: {
+                        widths: ["*", "*"],
+                        body: [
+                            ["Video file", videoName],
+                            ["Elongation source", source],
+                            ["Baseline tendon length (mm)", baseline],
+                            ["Pixel–mm conversion factor", factor],
+                            ["Patellar tendon moment arm (m)", momentArm],
 
-                { text: "\nResults", style: "subheader" },
-                {
-                    ul: [
-                        `Stiffness (N/mm): ${stiffness}`,
-                        `Normalized stiffness (N): ${normalized}`
-                    ]
+                            ["TF50 Force (N)", TF50],
+                            ["TF80 Force (N)", TF80],
+                            ["TF50 Elongation (mm)", L50],
+                            ["TF80 Elongation (mm)", L80],
+
+                            ["Stiffness (N/mm)", stiffness],
+                            ["Normalized stiffness (N)", normalized],
+
+                            ["Method", "Quadratic fit (TF50–TF80 interpolation)"],
+                            ["Export timestamp", new Date().toISOString()]
+                        ]
+                    },
+                    layout: "lightHorizontalLines"
                 },
 
                 { text: "\nPlots", style: "subheader" },
                 chart1 ? { image: chart1, width: 450, margin: [0,10,0,10] } : "",
                 chart2 ? { image: chart2, width: 450, margin: [0,10,0,10] } : "",
-                chart3 ? { image: chart3, width: 450, margin: [0,10,0,10] } : "",
-
-                { text: "\nDeepPatella – Automated tendon stiffness estimation", style: "footer" }
+                chart3 ? { image: chart3, width: 450, margin: [0,10,0,10] } : ""
             ],
+
             styles: {
-                header: { fontSize: 18, bold: true },
-                subheader: { fontSize: 14, bold: true, margin: [0, 10, 0, 5] },
-                footer: { fontSize: 8, italics: true, color: "gray" }
+                header: { fontSize: 18, bold: true, margin: [0,0,0,10] },
+                subheader: { fontSize: 14, bold: true, margin: [0, 10, 0, 5] }
             }
         };
 
@@ -1189,6 +1205,10 @@ function exportResultsToXLSX() {
     )?.value || "kalman";
 
     
+    const TF50 = parseFloat(localStorage.getItem("deepPatella_TF50_force"));
+    const TF80 = parseFloat(localStorage.getItem("deepPatella_TF80_force"));
+    const L50 = parseFloat(localStorage.getItem("deepPatella_TF50_elongation"));
+    const L80 = parseFloat(localStorage.getItem("deepPatella_TF80_elongation"));
     const baseline = parseFloat(localStorage.getItem("deepPatella_baseline_mm"));
     const stiffness = parseFloat(localStorage.getItem("deepPatella_stiffness"));
     const normalized = parseFloat(localStorage.getItem("deepPatella_stiffness_normalized"));
@@ -1206,8 +1226,17 @@ function exportResultsToXLSX() {
         ["Baseline tendon length (mm)", baseline],
         ["Pixel–mm conversion factor", factor],
         ["Patellar tendon moment arm (m)", momentArm],
+
+        ["TF50 Force (N)", TF50],
+        ["TF80 Force (N)", TF80],
+        ["TF50 Elongation (mm)", L50],
+        ["TF80 Elongation (mm)", L80],
+
         ["Stiffness (N/mm)", stiffness],
         ["Normalized stiffness (N)", normalized],
+
+        ["Method", "Quadratic fit (TF50–TF80 interpolation)"],
+
         ["Export timestamp", new Date().toISOString()]
     ];
 
@@ -1232,25 +1261,13 @@ function exportResultsToXLSX() {
 
     const tsSheet = XLSX.utils.json_to_sheet(timeSeries);
 
-    /* =========================
-       Sheet 3 — TF50–TF80
-       ========================= */
     const wb = XLSX.utils.book_new();
+
     XLSX.utils.book_append_sheet(wb, metaSheet, "Metadata");
     XLSX.utils.book_append_sheet(wb, tsSheet, "TimeSeries");
 
-    if (window.lastPairedData) {
-        const tfSheet = XLSX.utils.json_to_sheet(
-            window.lastPairedData.map(p => ({
-                deltaL_mm: p.x,
-                force_N: p.y
-            }))
-        );
-        XLSX.utils.book_append_sheet(wb, tfSheet, "TF50_TF80");
-    }
-
     XLSX.writeFile(wb, "deepPatella_results.xlsx");
-}
+    }
 
 
 // Tooltip HTML support (text + image)

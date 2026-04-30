@@ -59,6 +59,13 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.removeItem("deepPatella_stiffness");
             localStorage.removeItem("deepPatella_stiffness_normalized");
             localStorage.removeItem("deepPatella_last_video");
+            localStorage.removeItem("deepPatella_effective_scale");
+            localStorage.removeItem("deepPatella_TF50_force");
+            localStorage.removeItem("deepPatella_TF80_force");
+            localStorage.removeItem("deepPatella_TF50_elongation");
+            localStorage.removeItem("deepPatella_TF80_elongation");
+            localStorage.removeItem("deepPatella_effective_scale");
+            localStorage.removeItem("deepPatella_outliers");
 
             console.log("🧹 LocalStorage cleaned: all DeepPatella data removed");
 

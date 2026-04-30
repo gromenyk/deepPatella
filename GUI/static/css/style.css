@@ -494,8 +494,13 @@ menu li.active a {
     align-items: center;
 }
 
-.baseline-right img,
-.baseline-right canvas {
+.baseline-right .image-container.manual-mode {
+    width: auto !important;
+    height: auto !important;
+}
+
+.baseline-right .image-container:not(.manual-mode) img,
+.baseline-right .image-container:not(.manual-mode) canvas {
     width: 512px !important;
     height: 512px !important;
     display: block;
@@ -503,26 +508,32 @@ menu li.active a {
     object-fit: contain;
 }
 
-.baseline-right .image-container {
-    position: relative;
-    width: 512px;
-    height: 512px;
-    margin: 0 auto; 
+.baseline-right .image-container.manual-mode img,
+.baseline-right .image-container.manual-mode canvas {
+    width: auto !important;
+    height: auto !important;
 }
 
-.baseline-right .image-container img {
-    display: block;
+.baseline-right .image-container {
+    position: relative;
+    margin: 0 auto;
+}
+
+.baseline-right .image-container:not(.manual-mode) {
     width: 512px;
     height: 512px;
-    margin: 0;
+}
+
+.baseline-right .image-container.manual-mode {
+    width: auto !important;
+    height: auto !important;
+    display: inline-block;
 }
 
 .baseline-right .image-container canvas {
     position: absolute;
     top: 0;
     left: 0;
-    width: 512px;
-    height: 512px;
     pointer-events: none; 
 }
 
@@ -554,23 +565,31 @@ menu li.active a {
 
 /* Canvas overlay */
 
-#tendon-frame {
-    display: block;
-    width: 100%;   
+.baseline-right .image-container:not(.manual-mode) #tendon-frame {
+    width: 100%;
     height: auto;
-    margin: 0;
-    padding: 0;
-    border: none;
+}
+
+.baseline-right .image-container.manual-mode #tendon-frame {
+    width: auto !important;
+    height: auto !important;
 }
 
 #overlay {
     position: absolute;
     top: 0;
     left: 0;
-    pointer-events: auto; 
-    width: 100%; 
+    pointer-events: auto;
+}
+
+.baseline-right .image-container:not(.manual-mode) #overlay {
+    width: 100%;
     height: 100%;
-    border: none; 
+}
+
+.baseline-right .image-container.manual-mode #overlay {
+    width: auto !important;
+    height: auto !important;
 }
 
 .color-dot {

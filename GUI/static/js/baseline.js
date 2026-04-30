@@ -16,10 +16,18 @@
 //   - Polls for frame availability and Kalman coordinates on load
 //
 
+
+
 window.addEventListener("load", () => {
     const img = document.getElementById("tendon-frame");
     const canvas = document.getElementById("overlay");
     const ctx = canvas.getContext("2d");
+    const container = document.querySelector(".baseline-right .image-container");
+
+    img.onload = () => {
+        resizeCanvas();
+        draw();
+    };
 
     // Baseline mode selection handling
 
@@ -28,18 +36,21 @@ window.addEventListener("load", () => {
 
         function onBaselineModeChange(mode) {
             const manualUpload = document.getElementById("manual-video-upload");
-            if (!manualUpload) return;
+            if (!manualUpload || !container) return;
 
             if (mode === "manual") {
                 manualUpload.style.display = "block";
 
-                // Reset all coordinate inputs
+                // 🔥 activar modo manual en CSS
+                container.classList.add("manual-mode");
+
+                // Reset inputs
                 ["distal", "proximal", "extra1", "extra2"].forEach(id => {
                     const input = document.getElementById(id);
                     if (input) input.value = "Click on the image";
                 });
 
-                // Reset points array → all points editable
+                // Reset puntos
                 points = [
                     { coords: null, color: "#00FF00", inputId: "distal", fixed: false },
                     { coords: null, color: "#00BFFF", inputId: "proximal", fixed: false }
@@ -49,7 +60,15 @@ window.addEventListener("load", () => {
 
             } else {
                 manualUpload.style.display = "none";
-                // inference mode → Kalman polling will repopulate everything
+
+                // 🔥 volver a automático
+                container.classList.remove("manual-mode");
+
+                // restaurar imagen automática
+                img.src = frameUrl + "?t=" + Date.now();
+
+                // reactivar polling
+                checkFrame();
             }
 
             console.log("Baseline mode changed to:", mode);
@@ -76,12 +95,25 @@ window.addEventListener("load", () => {
 
     // Adjusts the canvas to the size of the image
     function resizeCanvas() {
-        const rect = img.getBoundingClientRect();
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-        drawPlaceholder();   
+
+        if (baselineMode === "manual") {
+
+            // 🔥 usar tamaño real de la imagen
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+
+            canvas.style.width = img.naturalWidth + "px";
+            canvas.style.height = img.naturalHeight + "px";
+
+        } else {
+
+            const rect = img.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        drawPlaceholder();
     }
-    resizeCanvas();
 
     window.addEventListener("resize", () => {
         resizeCanvas();
@@ -140,8 +172,12 @@ window.addEventListener("load", () => {
     // === Drag & drop ===
     canvas.addEventListener("mousedown", e => {
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
         draggedPoint = getPointAt(x, y);
 
         if (draggedPoint) {
@@ -152,8 +188,12 @@ window.addEventListener("load", () => {
     canvas.addEventListener("mousemove", e => {
         if (!draggedPoint) return;
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
         draggedPoint.coords = [x, y];
         draw();
     });
@@ -189,8 +229,12 @@ window.addEventListener("load", () => {
         if (!freeSlot) return;
 
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
 
         // Update input
         const input = document.getElementById(freeSlot.id);
@@ -218,8 +262,12 @@ window.addEventListener("load", () => {
         e.preventDefault();
 
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
 
         const point = getPointAt(x, y);
         if (!point) return;
@@ -269,7 +317,14 @@ window.addEventListener("load", () => {
     // px → mm button conversion
     document.getElementById("convert-btn").addEventListener("click", () => {
         const pxValue = parseFloat(document.getElementById("tendon-length").value);
-        const factor = parseFloat(localStorage.getItem("deepPatella_effective_scale"));
+        
+        let factor;
+
+        if (baselineMode === "manual") {
+            factor = parseFloat(localStorage.getItem("deepPatella_conversion_factor"));
+        } else {
+            factor = parseFloat(localStorage.getItem("deepPatella_effective_scale"));
+        }
 
         if (isNaN(pxValue)) {
             alert("You need to calculate the tendon length in pixels first.");
@@ -292,16 +347,22 @@ window.addEventListener("load", () => {
     const frameUrl = img.getAttribute("data-frame-url");
 
     function checkFrame() {
+        if (baselineMode === "manual") return;
+
         fetch(frameUrl, { cache: "no-store" })
             .then(response => {
                 if (response.ok) {
-                    img.src = frameUrl + "?t=" + new Date().getTime();
-                } else {
-                    setTimeout(checkFrame, 1000); 
+                    img.src = frameUrl + "?t=" + Date.now();
                 }
             })
-            .catch(() => setTimeout(checkFrame, 1000));
+            .catch(() => {
+                // ignorar error
+            })
+            .finally(() => {
+                setTimeout(checkFrame, 1000);
+            });
     }
+
     checkFrame();
 
     // Polling for Kalman coordinates loading
@@ -311,6 +372,7 @@ window.addEventListener("load", () => {
     let kalmanLoaded = false;
 
     function checkKalman() {
+        if (baselineMode === "manual") return;
         if (kalmanLoaded) return;
 
         Promise.all([
@@ -390,7 +452,7 @@ if (manualUploadBtn && manualVideoInput) {
 
             // Force reload of first frame (avoid browser cache)
             const baseFrameUrl = img.getAttribute("data-frame-url");
-            img.src = baseFrameUrl + "?t=" + Date.now();
+            img.src = "/static/img/original_frame.png?t=" + Date.now();
 
             console.log("✅ Manual video uploaded, first frame refreshed");
 

@@ -62,8 +62,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let end = null;
 
     function resizeCanvas() {
-        canvas.width = img.clientWidth;
-        canvas.height = img.clientHeight;
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+
+        canvas.style.width = img.clientWidth + "px";
+        canvas.style.height = img.clientHeight + "px";
     }
 
     function drawLine() {
@@ -108,26 +111,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getMousePos(e) {
         const rect = canvas.getBoundingClientRect();
+
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
         return [
-            e.clientX - rect.left,
-            e.clientY - rect.top
+            (e.clientX - rect.left) * scaleX,
+            (e.clientY - rect.top) * scaleY
         ];
     }
 
     // Open modal
     openBtn.addEventListener("click", async () => {
 
-        try {
-            const url = "/static/img/original_frame.png?t=" + Date.now();
-            const response = await fetch(url);
+        const baselineMode = document.querySelector('input[name="baseline-mode"]:checked')?.value;
 
-            if (!response.ok) {
-                alert("Please upload a video and run the inference first.");
-                return;
+        try {
+
+            if (baselineMode === "manual") {
+
+                const baselineImg = document.getElementById("tendon-frame");
+
+                if (!baselineImg || !baselineImg.src) {
+                    alert("No baseline image available.");
+                    return;
+                }
+
+                img.src = baselineImg.src;
+
+            } else {
+
+                const url = "/static/img/original_frame.png?t=" + Date.now();
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    alert("Original frame not available.");
+                    return;
+                }
+
+                img.src = url;
             }
 
         } catch (err) {
-            alert("Please upload a video and run the inference first.");
+            alert("Error loading calibration image.");
             return;
         }
 
@@ -138,7 +165,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        setTimeout(resizeCanvas, 50);
+        // 🔥 IMPORTANTE: recalcular cuando cargue imagen correcta
+        img.onload = () => {
+            resizeCanvas();
+        };
     });
 
     // Close modal
