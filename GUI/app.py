@@ -385,7 +385,6 @@ def cleanup():
         os.path.join(project_root, "data", "Synapse", "original_images.npy"),
         os.path.join(project_root, "GUI", "static", "img","frame_first.png"),
         os.path.join(project_root, "GUI", "static", "img", "original_frame.png"),
-        os.path.join(project_root, "GUI", "static", "img", "original_frame.png"),
         os.path.join(project_root, "TransUNet","datasets", "videos", "original_video.mp4"),
         os.path.join(project_root, "TransUNet","lists","lists_Synapse","test_vol.txt"),
         os.path.join(project_root, "TransUNet", "process_times.csv"),
@@ -855,7 +854,7 @@ def upload_manual_video():
             'GUI',
             'static',
             'img',
-            'frame_first.png'
+            'original_frame.png'
         )
 
         cv2.imwrite(frame_path, frame)
