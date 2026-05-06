@@ -131,15 +131,66 @@
                 <div id="outlier-warning">
                     <!-- JS will fill this -->
                 </div>
-                <div class="video-btns">
-                    <div class="frame-btns-row">
-                        <button id="prevKalman">Previous Frame</button>
-                        <button id="nextKalman">Next Frame</button>
+                <div class="bottom-controls">
+                    <div class="control-block control-panel">
+
+                        <h4 style="display: flex; align-items: center; gap: 6px;">
+
+                            <span id="toggleFrameByFrame" style="cursor: pointer;">
+                                <span id="frameByFrameArrow">▶</span>
+                            </span>
+
+                            <span>Frame by Frame Correction</span>
+
+                            <span class="info-icon" data-tooltip="This allows you to correct the coordinates from a specific frame. If you need to correct multiple frames, you can use the segment correction feature."></span>
+
+                        </h4>
+
+                        <div id="frameByFrameContent" style="display: none;">
+
+                            <div class="frame-btns-row">
+                                <button id="prevKalman">Previous Frame</button>
+                                <button id="nextKalman">Next Frame</button>
+                            </div>
+
+                        </div>
+
                     </div>
-                    <div class="frame-btns-row">
-                        <button id="saveCorrections">Save Corrections</button>
-                        <button id="resetCorrections">Reset Corrections</button>
+                    <div class="control-block control-panel">
+                        <h4>
+                            Segment Correction
+                            <span class="info-icon"
+                                data-tooltip="Click on 'Start Segment' to mark the beginning of a segment you want to correct. Then navigate to the end of the segment and click 'Mark End'. Then click on 'Apply' to apply interpolation to the marked segment, or 'Cancel' to discard the segment selection. You can repeat this process as many times as you want, and then click on 'Save Corrections' to apply all your changes at once.">
+                            </span>
+                        </h4>
+                        <div class="frame-btns-row">
+                            <button id="startSegment">Start Segment</button>
+                            <button id="markSegmentEnd" disabled>Mark End</button>
+                        </div>
+                        <div class="frame-btns-row">
+                            <button id="applySegment" disabled>Apply</button>
+                            <button id="cancelSegment" disabled>Cancel</button>
+                        </div>
+                        <div class="segments-table-container" id="segmentsContainer" style="display: none;">
+                            <h4>Segments</h4>
+                            <table id="segmentsTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Frame Start</th>
+                                        <th>Frame End</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
                     </div>
+                    <div class="global-actions">
+                        <button id="saveCorrections" class="btn-primary">Save Corrections</button>
+                        <button id="resetCorrections" class="btn-primary">Reset Corrections</button>
+                    </div>
+
                 </div>
             </div>
         </div>

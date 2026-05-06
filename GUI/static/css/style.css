@@ -433,7 +433,7 @@ menu li.active a {
     display: flex;
     flex-direction: column;
     align-items: center;     
-    justify-content: center; 
+    justify-content: flex-start; 
     width: 100%;
 }
 
@@ -1311,4 +1311,184 @@ menu li.active a {
     margin-top: 20px;
     align-items: center;
     justify-content: center;
+}
+
+/* ==== SEGMENT & FRAME BLOCKS ==== */
+
+.control-block {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #46505A;
+    border-radius: 8px;
+    padding: 12px 10px 10px 10px;
+    margin-top: 12px;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.control-block h4 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    color: #2D373C;
+    letter-spacing: 0.5px;
+}
+
+.control-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background-color: #D2EBE9;
+    padding: 10px 20px;
+    border-radius: 8px;
+}
+
+.video-btns button,
+.control-panel button {
+    width: 180px; 
+    background-color: #A5D7D2;
+    color: #46505A;
+    border: solid 1px #46505A;
+    font-size: 16px;
+    border-radius: 6px;
+    padding: 8px 0;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.video-btns button:hover,
+.control-panel button:hover {
+    background-color: #46505A;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.bottom-controls {
+    margin-top: auto;   /* 🔥 empuja todo hacia abajo */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;           /* separación entre bloques */
+}
+
+#kalman-correction-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    flex: 1;
+}
+
+.btn-primary {
+    width: 180px; 
+    background-color: #A5D7D2;
+    color: #46505A;
+    border: solid 1px #46505A;
+    font-size: 16px;
+    border-radius: 6px;
+    padding: 8px 0;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    margin-top: 20px;
+}
+
+.btn-primary:hover {
+    background-color: #46505A;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.global-actions {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+}
+
+#startSegment.segment-active {
+    background-color: #28a745;   /* verde fuerte */
+    color: white;
+    border-color: #1e7e34;
+}
+
+#startSegment.segment-active:hover {
+    background-color: #218838;
+}
+
+#markSegmentEnd.segment-end-active {
+    background-color: #D20537;   /* rojo */
+    color: white;
+    border-color: #b5002e;
+}
+
+#markSegmentEnd.segment-end-active:hover {
+    background-color: #b5002e;
+}
+
+/* ===== SEGMENTS TABLE ===== */
+
+.segments-table-container {
+    margin-top: 15px;
+    background: #f8f9fb;
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    padding: 10px;
+    width: 100%;;
+}
+
+.segments-table-container h4 {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #444;
+}
+
+#segmentsTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+#segmentsTable thead {
+    background: #2D373C;
+    color: white;
+}
+
+#segmentsTable th {
+    padding: 6px;
+    text-align: center;
+    font-weight: 500;
+}
+
+#segmentsTable td {
+    padding: 6px;
+    text-align: center;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+#segmentsTable tbody tr:nth-child(even) {
+    background: #f1f3f5;
+}
+
+#segmentsTable tbody tr:hover {
+    background: #e8f0fe;
+}
+
+#segmentsTable td:first-child {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+#segmentsTable button {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    background: #D20537;
+    color: white;
+    cursor: pointer;
+    font-size: 0.75rem;
+}
+
+#segmentsTable button:hover {
+    background: #a9032a;
 }
