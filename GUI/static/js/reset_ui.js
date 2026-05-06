@@ -66,6 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.removeItem("deepPatella_TF80_elongation");
             localStorage.removeItem("deepPatella_effective_scale");
             localStorage.removeItem("deepPatella_outliers");
+            localStorage.removeItem("dp_segments");
 
             console.log("🧹 LocalStorage cleaned: all DeepPatella data removed");
 
