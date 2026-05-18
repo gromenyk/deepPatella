@@ -73,6 +73,7 @@ async function loadCorrectionFrames() {
         document.getElementById('kalman-waiting-message').style.display = 'none';
         await loadCoords();
         showCorrectionFrame();
+        renderSegmentMarkers();
 
     } catch (err) {
         console.error('Error loading correction frames:', err);
@@ -241,8 +242,24 @@ function renderSegmentsTable() {
             <td>${index + 1}</td>
             <td>${seg.start}</td>
             <td>${seg.end}</td>
-            <td><button class="delete-btn" onclick="deleteSegment(${seg.id})">Delete</button></td>
-        `;
+            <td class="segment-actions">
+                <button
+                    class="nav-btn"
+                    onclick="goBeforeSegment(${index})">
+                    ←
+                </button>
+                <button
+                    class="delete-btn"
+                    onclick="deleteSegment(${seg.id})">
+                    Delete
+                </button>
+                <button
+                    class="nav-btn"
+                    onclick="goAfterSegment(${index})">
+                    →
+                </button>
+            </td>
+                    `;
 
         tbody.appendChild(row);
     });
@@ -250,14 +267,11 @@ function renderSegmentsTable() {
 
 function deleteSegment(id) {
 
-    // 1. Eliminar segmento
     segments = segments.filter(s => s.id !== id);
     saveSegmentsToStorage();
 
-    // 2. Resetear a estado original
     correctionCoords = JSON.parse(JSON.stringify(baseCoords));
 
-    // 3. Reaplicar TODOS los segmentos restantes
     segments.forEach(seg => {
 
         const start = seg.start;
@@ -286,6 +300,7 @@ function deleteSegment(id) {
     // 4. UI
     loadSegmentsFromStorage();
     renderSegmentsTable();
+    renderSegmentMarkers();
     showCorrectionFrame();
 
     if (segments.length === 0) {
@@ -295,22 +310,93 @@ function deleteSegment(id) {
     console.log("Segment deleted and state rebuilt:", id);
 }
 
+function renderSegmentMarkers() {
+
+    const track = document.getElementById('segmentTrack');
+
+    if (!track) return;
+
+    track.innerHTML = '';
+
+    const totalFrames = correctionFrames.length - 1;
+
+    if (totalFrames <= 0) return;
+
+    segments.forEach(seg => {
+
+        const marker = document.createElement('div');
+
+        marker.classList.add('segment-marker');
+
+        const left = (seg.start / totalFrames) * 100;
+
+        const width =
+            ((seg.end - seg.start) / totalFrames) * 100;
+
+        marker.style.left = `${left}%`;
+        marker.style.width = `${width}%`;
+
+        track.appendChild(marker);
+    });
+}
+
+function goBeforeSegment(index) {
+
+    const seg = segments[index];
+
+    if (!seg) return;
+
+    correctionFrameIndex =
+        Math.max(0, seg.start - 1);
+
+    document.getElementById('kalmanFrameSlider').value =
+        correctionFrameIndex;
+
+    showCorrectionFrame();
+}
+
+function goAfterSegment(index) {
+
+    const seg = segments[index];
+
+    if (!seg) return;
+
+    correctionFrameIndex =
+        Math.min(
+            correctionFrames.length - 1,
+            seg.end + 1
+        );
+
+    document.getElementById('kalmanFrameSlider').value =
+        correctionFrameIndex;
+
+    showCorrectionFrame();
+}
+
 // Init
 document.addEventListener('DOMContentLoaded', () => {
 
     loadSegmentsFromStorage();  
-    renderSegmentsTable();      
+    renderSegmentsTable();    
 
     loadCorrectionFrames();
     setupDragging();
 
     document.getElementById('prevKalman').addEventListener('click', () => {
-        if (correctionFrameIndex > 0) correctionFrameIndex--;
+        if (correctionFrameIndex > 0) {
+            correctionFrameIndex--;
+        }
+        document.getElementById('kalmanFrameSlider').value =
+            correctionFrameIndex;
         showCorrectionFrame();
     });
 
     document.getElementById('nextKalman').addEventListener('click', () => {
-        if (correctionFrameIndex < correctionFrames.length - 1) correctionFrameIndex++;
+        if (correctionFrameIndex < correctionFrames.length - 1) {
+            correctionFrameIndex++;
+        }
+        document.getElementById('kalmanFrameSlider').value =
+            correctionFrameIndex;
         showCorrectionFrame();
     });
 
@@ -399,7 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Segment applied:", newSegment);
 
         renderSegmentsTable();
-
+        renderSegmentMarkers();
         showCorrectionFrame();
 
         segmentState = {
@@ -425,6 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         localStorage.removeItem("dp_segments");
         segments = [];
+        renderSegmentMarkers();
 
         try {
             const res = await fetch('/reset_coords', { method: 'POST' });

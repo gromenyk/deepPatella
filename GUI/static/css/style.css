@@ -367,11 +367,6 @@ menu li.active a {
 
 /*Coordinates corrections section */
 
-#kalmanFrameSlider {
-    width: 100%;
-    margin-top: 25px;
-}
-
 /* Video controlling buttons styles (common to visualizations and coordinates correction) */
 .video-btns {
     display: flex;
@@ -412,15 +407,133 @@ menu li.active a {
     box-sizing: border-box;
 }
 
-#frameSlider,
-#kalmanFrameSlider {
+#frameSlider {
     width: 100%;
+    height: 20px;
+    margin-top: 20px;
+    margin-bottom: 25px;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+}
+
+#frameSlider::-webkit-slider-runnable-track {
+    height: 20px;
     background-color: #A5D7D2;
     border: solid 1px #2D373C;
     border-radius: 6px;
+}
+
+#frameSlider::-moz-range-track {
+    height: 20px;
+    background-color: #A5D7D2;
+    border: solid 1px #2D373C;
+    border-radius: 6px;
+}
+
+#frameSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 18px;
+    border-radius: 4px;
+    background: #007bff;
+    border: solid 1px #0056b3;
+    cursor: pointer;
+    margin-top: 0;
+    box-shadow: 0 0 2px rgba(0,0,0,0.3);
+}
+
+#frameSlider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: #007bff;
+    border: solid 1px #0056b3;
+    cursor: pointer;
+}
+
+.slider-wrapper {
+    position: relative;
+    width: 100%;
+    height: 20px;
+
     margin-top: 20px;
     margin-bottom: 25px;
+}
+
+#kalmanFrameSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
     height: 20px;
+    border-radius: 4px;
+    background: #007bff;
+    border: solid 1px #0056b3;
+    cursor: pointer;
+    margin-top: 1px;
+    box-shadow: 0 0 2px rgba(0,0,0,0.3);
+}
+
+#kalmanFrameSlider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: #007bff;
+    border: solid 1px #0056b3;
+    cursor: pointer;
+    box-shadow: 0 0 2px rgba(0,0,0,0.3);
+}
+
+#kalmanFrameSlider::-webkit-slider-runnable-track {
+    background: transparent;
+    height: 20px;
+}
+
+#kalmanFrameSlider::-moz-range-track {
+    background: transparent;
+    height: 20px;
+}
+
+#segmentTrack {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 20px;
+    background-color: #A5D7D2;
+    border: solid 1px #2D373C;
+    border-radius: 6px;
+    overflow: hidden;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.segment-marker {
+    position: absolute;
+
+    top: 0;
+    height: 100%;
+
+    background-color: #D20537;
+
+    opacity: 0.85;
+}
+
+#kalmanFrameSlider {
+    position: absolute;
+
+    top: 0;
+    left: 0;
+
+    width: 100%;
+    height: 20px;
+
+    margin: 0;
+
+    appearance: none;
+    -webkit-appearance: none;
+
+    background: transparent;
+
+    z-index: 2;
 }
 
 .col_middle .video-btns,
@@ -1491,4 +1604,24 @@ menu li.active a {
 
 #segmentsTable button:hover {
     background: #a9032a;
+}
+
+.segment-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+}
+
+.segment-actions .nav-btn {
+    width: 10%;
+}
+
+#segmentsTable .nav-btn {
+    background-color: #46505A;
+    min-width: 28px;
+}
+
+#segmentsTable .nav-btn:hover {
+    background-color: #2D373C;
 }
