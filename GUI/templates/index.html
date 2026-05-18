@@ -127,7 +127,17 @@
                     </canvas>
                 </div>
 
-                <input type="range" id="kalmanFrameSlider" min="0" value="0" step="1" oninput="updateKalmanFrame()" />
+                <div class="slider-wrapper">
+                    <div id="segmentTrack"></div>
+                    <input
+                        type="range"
+                        id="kalmanFrameSlider"
+                        min="0"
+                        value="0"
+                        step="1"
+                        oninput="updateKalmanFrame()"
+                    />
+                </div>
                 <div id="outlier-warning">
                     <!-- JS will fill this -->
                 </div>
